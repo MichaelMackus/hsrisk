@@ -49,7 +49,6 @@ executable hsrisk-exe
     , hsrisk
     , sdl2 >= 2.5
     , sdl2-image
-    , linear
   default-language: Haskell2010
 
 test-suite hsrisk-test
