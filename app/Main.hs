@@ -4,10 +4,12 @@ module Main where
 import Graphics.Rect
 import Graphics.Pixels
 
+import Codec.Picture
 import Control.Monad (unless)
 import SDL
 import SDL.Image (load)
 import SDL.Vect (V4(..))
+import qualified Data.Vector.Storable as V
 
 main :: IO ()
 main = do
@@ -17,9 +19,8 @@ main = do
   window   <- createWindow "My SDL Application" windowConfig
   renderer <- createRenderer window (-1) defaultRenderer
   {-- load our image and obtain the raw pixel data --}
-  surface  <- load "res/image/Risk_game_map_fixed.png"
-  pixels   <- surfaceToColors surface
-  print . take 100 . dropWhile (== 0) $ pixels
+  image    <- loadImage "res/image/Risk_game_map_fixed.png"
+  surface  <- createSurfaceFromImage image
   {-- create the SDL texture and pass to game loop --}
   texture  <- createTextureFromSurface renderer surface
   appLoop window renderer texture
