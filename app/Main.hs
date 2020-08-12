@@ -6,6 +6,7 @@ import Graphics.Pixels
 
 import Codec.Picture
 import Control.Monad (unless)
+import GHC.Int
 import SDL
 import SDL.Image (load)
 import SDL.Vect (V4(..))
@@ -23,21 +24,16 @@ main = do
   surface  <- createSurfaceFromImage image
   {-- create the SDL texture and pass to game loop --}
   texture  <- createTextureFromSurface renderer surface
-  appLoop window renderer texture
+  appLoop window renderer texture image
 
 bgColor = V4 200 200 200 200
 
-appLoop :: Window -> Renderer -> Texture -> IO ()
-appLoop window renderer texture = do
-  events <- pollEvents
-  let eventIsQPress event =
-        case eventPayload event of
-          KeyboardEvent keyboardEvent ->
-            keyboardEventKeyMotion keyboardEvent == Pressed &&
-            keysymKeycode (keyboardEventKeysym keyboardEvent) == KeycodeQ
-          WindowClosedEvent _ -> True
-          _ -> False
-      qPressed = any eventIsQPress events
+appLoop :: Window -> Renderer -> Texture -> Image PixelRGBA8 -> IO ()
+appLoop window renderer texture image = do
+  -- handle events
+  events <- map (handleEvent . eventPayload) <$> pollEvents
+  let quit = any (== QuitGame) events
+  -- render
   clear renderer
   rendererDrawColor renderer $= bgColor
   maxSize <- get (windowSize window)
@@ -45,4 +41,14 @@ appLoop window renderer texture = do
   target  <- mkRectangleWithin (textureDimensions texInfo) maxSize
   copy renderer texture Nothing (Just target)
   present renderer
-  unless qPressed (appLoop window renderer texture)
+  unless quit (appLoop window renderer texture image)
+
+data GameEvent = QuitGame | MouseHover (Point V2 Int32) | MouseClick MouseButton (Point V2 Int32) | OtherEvent deriving Eq
+
+handleEvent :: EventPayload -> GameEvent
+handleEvent (MouseButtonEvent  e)
+    | mouseButtonEventButton e == ButtonLeft = MouseClick ButtonLeft (mouseButtonEventPos e)
+handleEvent (KeyboardEvent e)
+    | keyboardEventKeyMotion e == Pressed && keysymKeycode (keyboardEventKeysym e) == KeycodeQ = QuitGame
+handleEvent (WindowClosedEvent _) = QuitGame
+handleEvent otherwise = OtherEvent
