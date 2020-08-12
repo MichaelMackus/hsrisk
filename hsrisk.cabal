@@ -39,6 +39,7 @@ library
     , JuicyPixels
     , vector
     , cpu
+    , containers
   default-language: Haskell2010
 
 executable hsrisk-exe
