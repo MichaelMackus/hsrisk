@@ -2,6 +2,11 @@ module Graphics.Image.Index
     (IndexedImage(..)
      ,indexImage
      ,findPixel
+     ,regionStartX
+     ,regionStartY
+     ,regionHeight
+     ,regionWidth
+     ,pToInt
     ) where
 
 import Codec.Picture
@@ -18,7 +23,8 @@ import qualified Data.List as L
 
 -- this is probably a specialized structure for our game Map and should be named/organized such
 data IndexedImage = IndexedImage {
-    colorRegions :: [I.IntSet],
+    colorRegions :: [[(Int, Int)]],
+    colorSets    :: [I.IntSet], -- for fast lookup performance
     image :: Image PixelRGBA8
 }
 
@@ -26,8 +32,9 @@ data IndexedImage = IndexedImage {
 -- this rejects fully transparent pixels
 indexImage :: Image PixelRGBA8 -> IndexedImage
 indexImage i =
-    let rs = map (regionToSet i) . filter (not . null) $ S.evalState (adjacentPixelRegionsState [(0,0)] i mempty) mempty
-    in  seq (length rs) $ IndexedImage rs i
+    let rs = filter (not . null) $ S.evalState (adjacentPixelRegionsState [(0,0)] i mempty) mempty
+        s  = map (regionToSet i) rs
+    in  seq (length rs) $ IndexedImage rs s i
 
 -- TODO move queue to end of list (see: wiki.haskell.org/Parameter_order)
 -- TODO fix performance
@@ -36,18 +43,18 @@ indexImage i =
 adjacentPixelRegionsState :: [(Int, Int)] -> Image PixelRGBA8 -> I.IntSet -> S.State (I.IntSet) [[(Int, Int)]]
 adjacentPixelRegionsState [] i _ = return []
 adjacentPixelRegionsState ((x,y):queue) i visited = do
-            if isVisited (pint (x,y) i) visited then adjacentPixelRegionsState queue i visited
+            if isVisited (pToInt (imageWidth i) (x,y)) visited then adjacentPixelRegionsState queue i visited
             else do
                 checked <- S.get
                 if not (outOfBounds (x,y) i) then do
-                    s  <- if isVisited (pint (x,y) i) checked then return [] else checkPixel (x, y)
+                    s  <- if isVisited (pToInt (imageWidth i) (x,y)) checked then return [] else checkPixel (x, y)
                     let queue' = (x+1, y):(x-1, y):(x, y+1):(x, y-1):queue
-                    (s:) <$> (adjacentPixelRegionsState queue' i $ I.insert (pint (x,y) i) visited)
+                    (s:) <$> (adjacentPixelRegionsState queue' i $ I.insert (pToInt (imageWidth i) (x,y)) visited)
                 else
                     adjacentPixelRegionsState queue i visited
     where checkPixel (x, y) =
                 if isTransparent (pixelAt i x y) || isBlack (pixelAt i x y) then do
-                   S.modify $ I.insert (pint (x,y) i)
+                   S.modify $ I.insert (pToInt (imageWidth i) (x,y))
                    return []
                 else adjacentPixelsState (x,y) i
 
@@ -64,23 +71,22 @@ adjacentPixels xy i = S.evalState (adjacentPixelsState xy i) mempty
 adjacentPixelsState :: (Int, Int) -> Image PixelRGBA8 -> S.State (I.IntSet) [(Int, Int)]
 adjacentPixelsState (x,y) i = S.StateT $ \s -> return (adjacentToIntSet [(x,y)] s)
     where
-        adjacentToIntSet [] visited          = ([], visited)
+        adjacentToIntSet [] visited              = ([], visited)
         adjacentToIntSet ((x,y):queue) visited
-            | not (isPixel (x,y))             = adjacentToIntSet queue visited -- isPixel seems to be the next bottleneck
-            | pint (x,y) i `I.member` visited = adjacentToIntSet queue visited
-            | otherwise                       =
-                let visited' = I.insert (pint (x,y) i) visited
+            | not (isPixel (x,y))                = adjacentToIntSet queue visited -- isPixel seems to be the next bottleneck
+            | isVisited (pToInt w (x,y)) visited = adjacentToIntSet queue visited
+            | otherwise                          =
+                let visited' = I.insert (pToInt w (x,y)) visited
                     queue'   = (x+1,y):(x-1,y):(x,y+1):(x,y-1):queue
                     (r, s)   = adjacentToIntSet queue' visited'
                 in  ((x,y):r, s)
 
-        p = pixelAt i x y
-        isPixel (x, y) = not (outOfBounds (x, y) i) && pixelAt i x y == p
-
+        isPixel (x', y') = not (outOfBounds (x', y') i) && pixelAt i x' y' == pixelAt i x y
+        w = imageWidth i
 
 -- get the index of the color region for a pixel coordinate
 findPixel :: IndexedImage -> (Int, Int) -> Maybe Int
-findPixel (IndexedImage rs i) p = L.elemIndex True (map ((pint p i) `I.member`) rs)
+findPixel (IndexedImage _ rs i) p = L.elemIndex True (map ((pToInt (imageWidth i) p) `I.member`) rs)
 
 -- get the intset for the pixels in the regions
 regionsToSet :: Image PixelRGBA8 -> [[(Int, Int)]] -> I.IntSet
@@ -90,7 +96,7 @@ regionsToSet i = foldr f mempty
 -- get the intset for the pixels in the region
 regionToSet :: Image PixelRGBA8 -> [(Int, Int)] -> I.IntSet
 regionToSet i = foldr f mempty
-    where f p s = I.insert (pint p i) s
+    where f p s = I.insert (pToInt (imageWidth i) p) s
 
 -- get start xpos of region
 regionStartX :: [(Int, Int)] -> Int
@@ -115,8 +121,8 @@ regionWidth r  = let xs = map fst r in maximum xs - minimum xs
 -- convenience function so we can use IntSet for performance
 isVisited :: Int -> I.IntSet -> Bool
 isVisited i visited = i `I.member` visited
-pint :: (Int, Int) -> Image a -> Int
-pint (x,y) i = (imageWidth i)*y + x
+pToInt :: Int -> (Int, Int) -> Int
+pToInt w (x,y) = w*y + x
 
 outOfBounds :: (Int, Int) -> Image a -> Bool
 outOfBounds (x, y) i = x >= imageWidth  i || x < 0 || y >= imageHeight i || y < 0
