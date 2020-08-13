@@ -109,14 +109,16 @@ regionStartY [] = error "Empty region"
 regionStartY r  = let ys = map snd r in minimum ys
 
 -- get rectangular height of region
+-- TODO is this right? giving 0 for 1 pixel wide
 regionHeight :: [(Int, Int)] -> Int
 regionHeight [] = 0
-regionHeight r  = let ys = map snd r in maximum ys - minimum ys
+regionHeight r  = let ys = map snd r in maximum ys - minimum ys + 1
 
 -- get rectangular width of region
+-- TODO is this right? giving 0 for 1 pixel wide
 regionWidth :: [(Int, Int)] -> Int
 regionWidth [] = 0
-regionWidth r  = let xs = map fst r in maximum xs - minimum xs
+regionWidth r  = let xs = map fst r in maximum xs - minimum xs + 1
 
 -- convenience function so we can use IntSet for performance
 isVisited :: Int -> I.IntSet -> Bool
