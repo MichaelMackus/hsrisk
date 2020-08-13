@@ -40,6 +40,7 @@ library
     , vector
     , cpu
     , containers
+    , mtl
   default-language: Haskell2010
 
 executable hsrisk-exe
@@ -56,6 +57,7 @@ executable hsrisk-exe
     , sdl2-image
     , JuicyPixels
     , vector
+    , containers
   default-language: Haskell2010
 
 test-suite hsrisk-test

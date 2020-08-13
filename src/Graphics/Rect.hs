@@ -1,5 +1,6 @@
 module Graphics.Rect
     ( mkRectangleWithin
+     ,mkRectangleCroppedTo
      ,textureDimensions
     ) where
 
@@ -12,6 +13,11 @@ mkRectangleWithin (V2 w h) (V2 outerw outerh) =
     let (w', h') = clampDimensionsTo (w, h) (outerw, outerh)
         (x,  y ) = translateOrigin (w, h) (outerw, outerh)
     in  return $ Rectangle (P (V2 x y)) (V2 w' h')
+
+mkRectangleCroppedTo :: V2 CInt -> V2 CInt -> IO (Rectangle CInt)
+mkRectangleCroppedTo (V2 w h) (V2 outerw outerh) =
+    let (w', h') = clampDimensionsTo (w, h) (outerw, outerh)
+    in  return $ Rectangle (P (V2 0 0)) (V2 w' h')
 
 textureDimensions :: TextureInfo -> V2 CInt
 textureDimensions (TextureInfo _ _ w h) = V2 w h
