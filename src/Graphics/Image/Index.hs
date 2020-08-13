@@ -1,35 +1,20 @@
-module Graphics.Pixels
-    ( loadImage
-     ,createSurfaceFromImage
-     ,IndexedImage(..)
+module Graphics.Image.Index
+    (IndexedImage(..)
      ,indexImage
      ,findPixel
     ) where
 
 import Codec.Picture
-import SDL
-import System.Endian
 import qualified Control.Monad.State as S
 import qualified Data.IntSet as I
-import qualified Data.Vector.Storable as V
 import qualified Data.List as L
 
-loadImage :: String -> IO (Image PixelRGBA8)
-loadImage f = do
-    r <- readImage f
-    case r of
-        Left  e -> error e
-        Right i -> do
-            return (convertRGBA8 i)
-
-createSurfaceFromImage :: Image PixelRGBA8 -> IO Surface
-createSurfaceFromImage i = do
-    pixels <- V.thaw (imageData i)
-    let fmt = case getSystemEndianness of
-                LittleEndian -> ABGR8888
-                BigEndian    -> RGBA8888
-    let (w, h) = (fromIntegral (imageWidth i), fromIntegral (imageHeight i))
-    createRGBSurfaceFrom pixels (V2 w h) (fromIntegral w*4) fmt
+-- TODO more efficient way to load indexed png
+-- loadIndexedImage f = do
+--     (Right i) <- readImage f
+--     let irgb = convertRGB8 i
+--     let (ip, p) = palettize (PaletteOptions Uniform False 256) irgb
+--     return ip
 
 -- this is probably a specialized structure for our game Map and should be named/organized such
 data IndexedImage = IndexedImage {

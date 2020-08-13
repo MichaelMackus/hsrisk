@@ -28,7 +28,8 @@ source-repository head
 library
   exposed-modules:
       Graphics.Rect
-    , Graphics.Pixels
+    , Graphics.Image.Index
+    , Graphics.Image
   other-modules:
       Paths_hsrisk
   hs-source-dirs:
@@ -58,6 +59,7 @@ executable hsrisk-exe
     , JuicyPixels
     , vector
     , containers
+    , bytestring
   default-language: Haskell2010
 
 test-suite hsrisk-test

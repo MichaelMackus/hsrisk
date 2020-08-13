@@ -2,7 +2,8 @@
 module Main where
 
 import Graphics.Rect
-import Graphics.Pixels
+import Graphics.Image
+import Graphics.Image.Index
 
 import Codec.Picture
 import Codec.Picture.Types (pixelMapXY)
