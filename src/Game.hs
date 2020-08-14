@@ -9,11 +9,14 @@ import Control.Monad.Reader
 import Control.Concurrent
 import Control.Concurrent.STM
 import SDL
+import qualified SDL.Font as Font
 import qualified Control.Monad.State as State
 import qualified Data.IntSet as S
 
 runGame :: Window -> Renderer -> Image PixelRGBA8 -> IO ()
 runGame window renderer image = do
+    Font.initialize
+    font     <- Font.load "res/font/LiberationSans-Regular.ttf" 16
     {-- convert image to SDL --}
     surface  <- createSurfaceFromImage image
     texture  <- createTextureFromSurface renderer surface
@@ -29,7 +32,7 @@ runGame window renderer image = do
             -- TODO initialize image regions to default color
         seq (length $ colorRegions index) (putStrLn "Image indexed")
         atomically $ writeTVar shared (Just index)
-    waitUntilLoaded renderer shared $ do
+    waitUntilLoaded renderer font shared $ do
         putStrLn "Thread finished"
         (Just index) <- atomically $ readTVar shared
         regions      <- createTexturesFromIndex renderer index
@@ -44,13 +47,13 @@ indexFilter p = not (isTransparent p || isBlack p)
       isBlack (PixelRGBA8 0 0 0 255) = True
       isBlack otherwise = False
 
-waitUntilLoaded :: Renderer -> TVar (Maybe IndexedImage) -> IO () -> IO ()
-waitUntilLoaded r shared finally = do
+waitUntilLoaded :: Renderer -> Font.Font -> TVar (Maybe IndexedImage) -> IO () -> IO ()
+waitUntilLoaded r f shared finally = do
     index <- atomically $ readTVar shared
     case index of
         Nothing -> do
-            renderLoadingScreen r
-            waitUntilLoaded r shared finally
+            renderLoadingScreen r f
+            waitUntilLoaded r f shared finally
         Just _  -> finally
 
 gameLoop :: GameRenderer ()
