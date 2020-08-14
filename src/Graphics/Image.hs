@@ -4,6 +4,8 @@ module Graphics.Image
      ,createSurfacesFromIndex
      ,createTexturesFromIndex
      ,ptoi
+     ,fromXY
+     ,toXY
      ,module Graphics.Image.Index
     ) where
 
@@ -65,6 +67,9 @@ regionRect r =
 
 fromXY :: Integral a => (Int, Int) -> Point V2 a
 fromXY (x, y) = P (V2 (fromIntegral x) (fromIntegral y))
+
+toXY :: Integral a => Point V2 a -> (Int, Int)
+toXY (P (V2 x y)) = (fromIntegral x, fromIntegral y)
 
 ptoi :: Integral a => Point V2 a -> Point V2 Int
 ptoi (P (V2 x y)) = (P (V2 (fromIntegral x) (fromIntegral y)))

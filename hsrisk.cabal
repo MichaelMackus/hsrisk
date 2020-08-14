@@ -27,7 +27,10 @@ source-repository head
 
 library
   exposed-modules:
-      Graphics.Rect
+      Game
+    , Game.Types
+    , Game.Renderer
+    , Graphics.Rect
     , Graphics.Image.Index
     , Graphics.Image
   other-modules:
@@ -60,6 +63,7 @@ executable hsrisk-exe
     , vector
     , containers
     , bytestring
+    , mtl
   default-language: Haskell2010
 
 test-suite hsrisk-test
