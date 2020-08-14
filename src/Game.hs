@@ -6,6 +6,8 @@ import Graphics.Image
 
 import Codec.Picture (Image(..), PixelRGBA8(..), pixelOpacity)
 import Control.Monad.Reader
+import Control.Concurrent
+import Control.Concurrent.STM
 import SDL
 import qualified Control.Monad.State as State
 
@@ -15,12 +17,18 @@ runGame window renderer image = do
     surface  <- createSurfaceFromImage image
     texture  <- createTextureFromSurface renderer surface
     -- get texture regions from image index
-    let index = indexImage indexFilter image
-    seq index (putStrLn "Image indexed")
-    regions  <- createTexturesFromIndex renderer index
-    -- TODO group small closeby regions (i.e. islands)
-    -- TODO initialize image regions to default color
-    State.evalStateT (runReaderT gameLoop (RendererEnv window renderer texture index regions)) (GameState True Nothing) 
+    shared <- atomically $ newTVar Nothing
+    forkIO $ do
+        let index = indexImage indexFilter image
+        seq index (putStrLn "Image indexed")
+        atomically $ writeTVar shared (Just index)
+    waitUntilLoaded renderer shared $ do
+        putStrLn "Thread finished"
+        (Just index) <- atomically $ readTVar shared
+        regions      <- createTexturesFromIndex renderer index
+        -- TODO group small closeby regions (i.e. islands)
+        -- TODO initialize image regions to default color
+        State.evalStateT (runReaderT gameLoop (RendererEnv window renderer texture index regions)) (GameState True Nothing) 
 
 indexFilter :: PixelRGBA8 -> Bool
 indexFilter p = not (isTransparent p || isBlack p)
@@ -30,6 +38,15 @@ indexFilter p = not (isTransparent p || isBlack p)
       isBlack :: PixelRGBA8 -> Bool
       isBlack (PixelRGBA8 0 0 0 255) = True
       isBlack otherwise = False
+
+waitUntilLoaded :: Renderer -> TVar (Maybe IndexedImage) -> IO () -> IO ()
+waitUntilLoaded r shared finally = do
+    index <- atomically $ readTVar shared
+    case index of
+        Nothing -> do
+            renderLoadingScreen r
+            waitUntilLoaded r shared finally
+        Just _  -> finally
 
 gameLoop :: GameRenderer ()
 gameLoop = do

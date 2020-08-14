@@ -45,6 +45,7 @@ library
     , cpu
     , containers
     , mtl
+    , stm
   default-language: Haskell2010
 
 executable hsrisk-exe

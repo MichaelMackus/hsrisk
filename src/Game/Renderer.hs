@@ -1,4 +1,4 @@
-module Game.Renderer (updateRenderer) where
+module Game.Renderer (renderLoadingScreen, updateRenderer) where
 
 import Game.Types
 
@@ -9,6 +9,12 @@ import SDL
 import qualified Control.Monad.State as State
 
 bgColor = V4 200 200 200 200
+
+renderLoadingScreen :: Renderer -> IO ()
+renderLoadingScreen r = do
+  clear r
+  rendererDrawColor r $= bgColor
+  present r
 
 updateRenderer :: GameRenderer ()
 updateRenderer = do
