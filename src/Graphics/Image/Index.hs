@@ -1,6 +1,7 @@
 module Graphics.Image.Index
     (IndexedImage(..)
      ,indexImage
+     ,filterIndex
      ,findPixel
      ,regionStartX
      ,regionStartY
@@ -34,7 +35,11 @@ indexImage :: (PixelRGBA8 -> Bool) -> Image PixelRGBA8 -> IndexedImage
 indexImage f i =
     let rs = filter (not . null) $ S.evalState (adjacentPixelRegionsState f [(0,0)] i mempty) mempty
         s  = map (regionToSet i) rs
-    in  seq (length rs) $ IndexedImage rs s i
+    in  IndexedImage rs s i
+
+filterIndex :: ([(Int,Int)] -> I.IntSet -> Bool) -> IndexedImage -> IndexedImage
+filterIndex f i = let (rs, s) = unzip $ filter (uncurry f) (zip (colorRegions i) (colorSets i))
+                  in  IndexedImage rs s (image i)
 
 -- TODO move queue to end of list (see: wiki.haskell.org/Parameter_order)
 -- TODO fix performance

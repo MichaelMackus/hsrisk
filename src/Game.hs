@@ -10,6 +10,7 @@ import Control.Concurrent
 import Control.Concurrent.STM
 import SDL
 import qualified Control.Monad.State as State
+import qualified Data.IntSet as S
 
 runGame :: Window -> Renderer -> Image PixelRGBA8 -> IO ()
 runGame window renderer image = do
@@ -19,15 +20,19 @@ runGame window renderer image = do
     -- get texture regions from image index
     shared <- atomically $ newTVar Nothing
     forkIO $ do
-        let index = indexImage indexFilter image
-        seq index (putStrLn "Image indexed")
+        let index = filterIndex f (indexImage indexFilter image)
+            -- for now we just drop the small regions
+            -- TODO group small closeby regions (i.e. islands)
+            f r i = let s = S.size i
+                    in  s > 600 || regionStartX r < 700 ||
+                         (regionStartY r < 300 && s > 200)
+            -- TODO initialize image regions to default color
+        seq (length $ colorRegions index) (putStrLn "Image indexed")
         atomically $ writeTVar shared (Just index)
     waitUntilLoaded renderer shared $ do
         putStrLn "Thread finished"
         (Just index) <- atomically $ readTVar shared
         regions      <- createTexturesFromIndex renderer index
-        -- TODO group small closeby regions (i.e. islands)
-        -- TODO initialize image regions to default color
         State.evalStateT (runReaderT gameLoop (RendererEnv window renderer texture index regions)) (GameState True Nothing) 
 
 indexFilter :: PixelRGBA8 -> Bool
