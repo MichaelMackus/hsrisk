@@ -22,14 +22,11 @@ runGame window renderer image = do
     texture  <- createTextureFromSurface renderer surface
     -- get texture regions from image index
     shared <- atomically $ newTVar Nothing
+    image' <- loadImage "res/image/risk-map-connected-regions.png"
+    seq image' $ putStrLn "Image loaded"
     forkIO $ do
-        let index = filterIndex f (indexImage indexFilter image)
-            -- for now we just drop the small regions
-            -- TODO group small closeby regions (i.e. islands)
-            f r i = let s = S.size i
-                    in  s > 600 || regionStartX r < 700 ||
-                         (regionStartY r < 300 && s > 200)
-            -- TODO initialize image regions to default color
+        let index = indexImage indexFilter image'
+        -- TODO initialize image regions to default color
         seq (length $ colorRegions index) (putStrLn "Image indexed")
         atomically $ writeTVar shared (Just index)
     waitUntilLoaded renderer font shared $ do
@@ -39,13 +36,10 @@ runGame window renderer image = do
         State.evalStateT (runReaderT gameLoop (RendererEnv window renderer texture index regions)) (GameState True Nothing) 
 
 indexFilter :: PixelRGBA8 -> Bool
-indexFilter p = not (isTransparent p || isBlack p)
+indexFilter p = not (isTransparent p)
     where
       isTransparent :: PixelRGBA8 -> Bool
       isTransparent = (==0) . pixelOpacity
-      isBlack :: PixelRGBA8 -> Bool
-      isBlack (PixelRGBA8 0 0 0 255) = True
-      isBlack otherwise = False
 
 waitUntilLoaded :: Renderer -> Font.Font -> TVar (Maybe IndexedImage) -> IO () -> IO ()
 waitUntilLoaded r f shared finally = do
