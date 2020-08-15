@@ -23,13 +23,9 @@ runGame window renderer image = do
     -- get texture regions from image index
     shared <- atomically $ newTVar Nothing
     forkIO $ do
-        let index = filterIndex f (indexImage indexFilter image)
-            -- for now we just drop the small regions
-            -- TODO group small closeby regions (i.e. islands)
-            f r i = let s = S.size i
-                    in  s > 600 || regionStartX r < 700 ||
-                         (regionStartY r < 300 && s > 200)
-            -- TODO initialize image regions to default color
+        (rs, i) <- return . read =<< readFile "res/image/risk-map.index" :: IO ([[(Int, Int)]], [S.IntSet])
+        let index = IndexedImage rs i image
+        -- TODO initialize image regions to default color
         seq (length $ colorRegions index) (putStrLn "Image indexed")
         atomically $ writeTVar shared (Just index)
     waitUntilLoaded renderer font shared $ do
