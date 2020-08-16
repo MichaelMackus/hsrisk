@@ -8,9 +8,6 @@ import SDL
 
 main :: IO ()
 main = do
-  {-- load background image index --}
-  image <- loadImage "res/image/Risk_game_map_fixed.png"
-  seq image $ putStrLn "Image loaded"
   {-- initialize SDL --}
   initializeAll
   HintRenderScaleQuality $= ScaleLinear
@@ -19,4 +16,4 @@ main = do
   window   <- createWindow "My SDL Application" windowConfig
   renderer <- createRenderer window (-1) defaultRenderer
   {-- pass off to game loop --}
-  runGame window renderer image
+  runGame window renderer

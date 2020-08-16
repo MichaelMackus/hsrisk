@@ -8,41 +8,48 @@ import Codec.Picture (Image(..), PixelRGBA8(..), pixelOpacity)
 import Control.Monad.Reader
 import Control.Concurrent
 import Control.Concurrent.STM
+import Data.Maybe (isJust)
 import SDL
 import qualified SDL.Font as Font
 import qualified Control.Monad.State as State
 import qualified Data.IntSet as S
 
-runGame :: Window -> Renderer -> Image PixelRGBA8 -> IO ()
-runGame window renderer image = do
+runGame :: Window -> Renderer -> IO ()
+runGame window renderer = do
     Font.initialize
     font     <- Font.load "res/font/LiberationSans-Regular.ttf" 16
-    {-- convert image to SDL --}
-    surface  <- createSurfaceFromImage image
-    texture  <- createTextureFromSurface renderer surface
-    -- get texture regions from image index
+    {-- load game assets in separate thread --}
     shared <- atomically $ newTVar Nothing
-    image' <- loadImage "res/image/risk-map-connected-regions.png"
-    seq image' $ putStrLn "Image loaded"
     forkIO $ do
+        {-- load background image --}
+        image <- loadImage "res/image/Risk_game_map_fixed.png"
+        seq image $ putStrLn "Image loaded"
+        {-- convert image to SDL --}
+        surface  <- createSurfaceFromImage image
+        texture  <- createTextureFromSurface renderer surface
+        {-- load image without numbers or borders to index regions --}
+        image' <- loadImage "res/image/risk-map-connected-regions.png"
+        seq image' $ putStrLn "Index image loaded"
         let index = indexImage image'
         -- TODO initialize image regions to default color
         seq (length $ colorRegions index) (putStrLn "Image indexed")
-        atomically $ writeTVar shared (Just index)
+        regions <- createTexturesFromIndex renderer index
+        seq (length regions) (putStrLn "Region textures loaded")
+        let env = RendererEnv window renderer texture index regions
+        atomically $ writeTVar shared (Just env)
+    {-- wait to play game until assets are loaded --}
     waitUntilLoaded renderer font shared $ do
-        putStrLn "Thread finished"
-        (Just index) <- atomically $ readTVar shared
-        regions      <- createTexturesFromIndex renderer index
-        State.evalStateT (runReaderT gameLoop (RendererEnv window renderer texture index regions)) (GameState True Nothing) 
+        putStrLn "Asset loading thread finished"
+        (Just env) <- atomically $ readTVar shared
+        State.evalStateT (runReaderT gameLoop env) (GameState True Nothing) 
 
-waitUntilLoaded :: Renderer -> Font.Font -> TVar (Maybe IndexedImage) -> IO () -> IO ()
+waitUntilLoaded :: Renderer -> Font.Font -> TVar (Maybe RendererEnv) -> IO () -> IO ()
 waitUntilLoaded r f shared finally = do
     index <- atomically $ readTVar shared
-    case index of
-        Nothing -> do
-            renderLoadingScreen r f
-            waitUntilLoaded r f shared finally
-        Just _  -> finally
+    if isJust index then finally
+    else do
+        renderLoadingScreen r f
+        waitUntilLoaded r f shared finally
 
 gameLoop :: GameRenderer ()
 gameLoop = do
