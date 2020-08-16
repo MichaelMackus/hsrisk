@@ -4,13 +4,11 @@ module Graphics.Image
      ,createSurfacesFromIndex
      ,createTexturesFromIndex
      ,regionRects
-     ,ptoi
-     ,fromXY
-     ,toXY
      ,module Graphics.Image.Index
     ) where
 
 import Graphics.Image.Index
+import Graphics.Image.Util
 
 import Codec.Picture
 import Control.Monad (forM, when)
@@ -46,15 +44,6 @@ regionRects :: Integral a => IndexedImage -> [Rectangle a]
 regionRects index = map f (indexRegions index)
     where f ((x,y), i) = let (w,h) = (fromIntegral (imageWidth i), fromIntegral (imageHeight i))
                          in  Rectangle (fromXY (x,y)) (V2 w h)
-
-fromXY :: Integral a => (Int, Int) -> Point V2 a
-fromXY (x, y) = P (V2 (fromIntegral x) (fromIntegral y))
-
-toXY :: Integral a => Point V2 a -> (Int, Int)
-toXY (P (V2 x y)) = (fromIntegral x, fromIntegral y)
-
-ptoi :: Integral a => Point V2 a -> Point V2 Int
-ptoi (P (V2 x y)) = (P (V2 (fromIntegral x) (fromIntegral y)))
 
 systemFormat :: PixelFormat
 systemFormat = case getSystemEndianness of
