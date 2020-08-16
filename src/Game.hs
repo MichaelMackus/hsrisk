@@ -3,8 +3,9 @@ module Game (gameLoop, runGame) where
 import Game.Types
 import Game.Renderer
 import Graphics.Image
+import Graphics.Image.Util
 
-import Codec.Picture (Image(..), PixelRGBA8(..), pixelOpacity)
+import Codec.Picture (Image(..), PixelRGBA8(..), pixelOpacity, generateImage, pixelAt)
 import Control.Monad.Reader
 import Control.Concurrent
 import Control.Concurrent.STM
@@ -23,19 +24,29 @@ runGame window renderer = do
     forkIO $ do
         {-- load background image --}
         image <- loadImage "res/image/Risk_game_map_fixed.png"
-        seq image $ putStrLn "Image loaded"
+        putStrLn "Image loaded"
         {-- convert image to SDL --}
         surface  <- createSurfaceFromImage image
         texture  <- createTextureFromSurface renderer surface
         {-- load image without numbers or borders to index regions --}
         image' <- loadImage "res/image/risk-map-connected-regions.png"
-        seq image' $ putStrLn "Index image loaded"
-        let index = indexImage image'
+        putStrLn "Index image loaded"
+        let index   = indexImage image'
+            images' = map f (indexRegions index) -- this is necessary so we mask out colors not in original map
+                where f ((sx,sy),i)   = let (w,h) = (imageWidth i, imageHeight i)
+                                        in  generateImage (g (sx,sy) i) w h :: Image PixelRGBA8
+                      g (sx,sy) i x y = let pi   = pixelAt image (sx + x) (sy + y)
+                                            pi'  = pixelAt i x y
+                                        in  if isTransparent pi || pi /= pi' then PixelRGBA8 0 0 0 0
+                                            else PixelRGBA8 255 255 255 125
         -- TODO initialize image regions to default color
-        seq (length $ colorRegions index) (putStrLn "Image indexed")
-        regions <- createTexturesFromIndex renderer index
-        seq (length regions) (putStrLn "Region textures loaded")
-        let env = RendererEnv window renderer texture index regions
+        seq (length $ indexRegions index) (putStrLn "Image indexed")
+        seq (length $ images') (putStrLn "Index masked")
+        surfaces <- mapM createSurfaceFromImage images'
+        textures <- mapM (createTextureFromSurface renderer) surfaces
+        putStrLn "Region textures loaded"
+        let regions = zip (regionRects index) textures
+            env     = RendererEnv window renderer texture index regions
         atomically $ writeTVar shared (Just env)
     {-- wait to play game until assets are loaded --}
     waitUntilLoaded renderer font shared $ do

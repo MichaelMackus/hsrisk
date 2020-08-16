@@ -2,6 +2,7 @@
 module Game.Renderer (renderLoadingScreen, updateRenderer) where
 
 import Game.Types
+import Graphics.Image.Util
 
 import Control.Concurrent (threadDelay)
 import Control.Monad.Reader
@@ -12,7 +13,7 @@ import qualified Data.Text as T
 import qualified SDL.Font as Font
 import qualified Control.Monad.State as State
 
-bgColor = V4 200 200 200 200
+bgColor = pixelToSDL grey
 
 renderLoadingScreen :: Renderer -> Font.Font -> IO ()
 renderLoadingScreen r font = f "Loading"

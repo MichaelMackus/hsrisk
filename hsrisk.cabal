@@ -32,6 +32,7 @@ library
     , Game.Renderer
     , Graphics.Rect
     , Graphics.Image.Index
+    , Graphics.Image.Util
     , Graphics.Image
   other-modules:
       Paths_hsrisk
