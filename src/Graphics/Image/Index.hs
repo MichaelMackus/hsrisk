@@ -34,7 +34,7 @@ data IndexedImage = IndexedImage {
 indexImage :: Image PixelRGBA8 -> IndexedImage
 indexImage i =
     let queue = [ (x,y) | y <- [0..imageHeight i - 1], x <- [0..imageWidth i - 1] ]
-        rs = S.evalState (adjacentPixelRegionsState queue i) mempty
+        rs = S.evalState (adjacentPixelRegionsState i queue) mempty
     -- let rs = fst (adjacentPixelRegionsF [(0,0)] i mempty mempty)
         s  = map (regionToSet i) rs
     in  IndexedImage rs s i
@@ -43,39 +43,36 @@ filterIndex :: ([(Int,Int)] -> I.IntSet -> Bool) -> IndexedImage -> IndexedImage
 filterIndex f i = let (rs, s) = unzip $ filter (uncurry f) (zip (colorRegions i) (colorSets i))
                   in  IndexedImage rs s (image i)
 
--- TODO move queue to end of list (see: wiki.haskell.org/Parameter_order)
-adjacentPixelRegionsState :: [(Int, Int)] -> Image PixelRGBA8 -> S.State (I.IntSet) [[(Int, Int)]]
-adjacentPixelRegionsState [] _ = return []
-adjacentPixelRegionsState ((x,y):queue) i = do
+adjacentPixelRegionsState :: Image PixelRGBA8 -> [(Int, Int)] -> S.State (I.IntSet) [[(Int, Int)]]
+adjacentPixelRegionsState _ [] = return []
+adjacentPixelRegionsState i ((x,y):queue) = do
             checked <- S.get
             if isVisited (pToInt (imageWidth i) (x,y)) checked || isTransparent (pixelAt i x y) then
-                adjacentPixelRegionsState queue i
+                adjacentPixelRegionsState i queue
             else do
-                r <- adjacentPixelsState (x, y) i
-                (r:) <$> adjacentPixelRegionsState queue i
+                r <- adjacentPixelsState i (x, y)
+                (r:) <$> adjacentPixelRegionsState i queue
         where
             isTransparent :: PixelRGBA8 -> Bool
             isTransparent = (==0) . pixelOpacity
 
 -- gets the list of adjacent pixels of the same color
-adjacentPixels xy i = S.evalState (adjacentPixelsState xy i) mempty
+adjacentPixels i xy = S.evalState (adjacentPixelsState i xy) mempty
 
-adjacentPixelsState :: (Int, Int) -> Image PixelRGBA8 -> S.State (I.IntSet) [(Int, Int)]
-adjacentPixelsState (x,y) i = S.StateT $ \s -> return (adjacentToIntSet [(x,y)] s)
+adjacentPixelsState :: Image PixelRGBA8 -> (Int, Int) -> S.State (I.IntSet) [(Int, Int)]
+adjacentPixelsState i (x,y) = S.StateT $ \s -> return (adjacentToIntSet s [(x,y)])
     where
-        adjacentToIntSet [] visited              = ([], visited)
-        adjacentToIntSet ((x,y):queue) visited
-            | not (pixelInRegion (x,y))          = adjacentToIntSet queue visited -- isPixel seems to be the next bottleneck
-            | isVisited (pToInt w (x,y)) visited = adjacentToIntSet queue visited
+        adjacentToIntSet visited []              = ([], visited)
+        adjacentToIntSet visited ((x,y):queue)
+            | not (pixelInRegion (x,y))          = adjacentToIntSet visited queue -- isPixel seems to be the next bottleneck
+            | isVisited (pToInt w (x,y)) visited = adjacentToIntSet visited queue
             | otherwise                          =
                 let visited' = I.insert (pToInt w (x,y)) visited
                     queue'   = (x+1,y):(x-1,y):(x,y+1):(x,y-1):queue
-                    (r, s)   = adjacentToIntSet queue' visited'
+                    (r, s)   = adjacentToIntSet visited' queue'
                 in  ((x,y):r, s)
 
         pixelInRegion (x', y') = not (outOfBounds (x', y') i) && (pixelAt i x' y' == pixelAt i x y)
-                                    -- TODO isTransparent won't *quite* do it since it will loop around *all* transparent pixels
-                                    -- (pixelAt i x' y' == pixelAt i x y || isTransparent pixelAt i x' y')
         w = imageWidth i
 
 -- get the index of the color region for a pixel coordinate
