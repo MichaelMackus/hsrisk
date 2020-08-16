@@ -64,16 +64,21 @@ adjacentPixelsState i (x,y) = S.StateT $ \s -> return (adjacentToIntSet s [(x,y)
     where
         adjacentToIntSet visited []              = ([], visited)
         adjacentToIntSet visited ((x,y):queue)
-            | not (pixelInRegion (x,y))          = adjacentToIntSet visited queue -- isPixel seems to be the next bottleneck
-            | isVisited (pToInt w (x,y)) visited = adjacentToIntSet visited queue
+            | isVisited (pToInt w (x,y)) visited = adjacentToIntSet visited queue 
+            | not (pixelInRegion (x,y))          = adjacentToIntSet visited queue -- pixelAt seems to be the next bottleneck
             | otherwise                          =
                 let visited' = I.insert (pToInt w (x,y)) visited
-                    queue'   = (x+1,y):(x-1,y):(x,y+1):(x,y-1):queue
+                    newps    = filter (isVisitable visited') [(x+1,y), (x-1,y), (x,y+1), (x,y-1)]
+                    queue'   = newps ++ queue
                     (r, s)   = adjacentToIntSet visited' queue'
                 in  ((x,y):r, s)
 
-        pixelInRegion (x', y') = not (outOfBounds (x', y') i) && (pixelAt i x' y' == pixelAt i x y)
+        isVisitable visited (x, y) = not (isVisited (pToInt w (x,y)) visited)
+        pixelInRegion (x', y') = not (outOfBounds (x', y') i) && (pixelAt i x' y' == p)
+        outOfBounds (x, y) i = x >= w || x < 0 || y >= h || y < 0
+        p = pixelAt i x y
         w = imageWidth i
+        h = imageHeight i
 
 -- get the index of the color region for a pixel coordinate
 findPixel :: IndexedImage -> (Int, Int) -> Maybe Int
