@@ -40,8 +40,10 @@ runGame window renderer = do
                                         in  if isTransparent pi || pi /= pi' then PixelRGBA8 0 0 0 0
                                             else PixelRGBA8 255 255 255 125
         -- TODO initialize image regions to default color
-        seq (length $ indexRegions index) (putStrLn "Image indexed")
-        seq (length $ images') (putStrLn "Index masked")
+        when (length (indexRegions index) /= 42) (error "Unable to continue - territories in index does not equal 42!")
+        putStrLn "Image indexed"
+        when (length (indexRegions index) /= length images') (error "Unable to continue - territories do not equal mask images!")
+        putStrLn "Index masked"
         surfaces <- mapM createSurfaceFromImage images'
         textures <- mapM (createTextureFromSurface renderer) surfaces
         putStrLn "Region textures loaded"
