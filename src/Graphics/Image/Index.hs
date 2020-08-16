@@ -31,9 +31,11 @@ data IndexedImage = IndexedImage {
 
 -- get a list of pixel regions containing the same color
 -- this rejects fully transparent pixels
-indexImage :: (PixelRGBA8 -> Bool) -> Image PixelRGBA8 -> IndexedImage
-indexImage f i =
-    let rs = filter (not . null) $ S.evalState (adjacentPixelRegionsState f [(0,0)] i mempty) mempty
+indexImage :: Image PixelRGBA8 -> IndexedImage
+indexImage i =
+    let queue = [ (x,y) | y <- [0..imageHeight i - 1], x <- [0..imageWidth i - 1] ]
+        rs = S.evalState (adjacentPixelRegionsState queue i) mempty
+    -- let rs = fst (adjacentPixelRegionsF [(0,0)] i mempty mempty)
         s  = map (regionToSet i) rs
     in  IndexedImage rs s i
 
@@ -42,26 +44,18 @@ filterIndex f i = let (rs, s) = unzip $ filter (uncurry f) (zip (colorRegions i)
                   in  IndexedImage rs s (image i)
 
 -- TODO move queue to end of list (see: wiki.haskell.org/Parameter_order)
--- TODO fix performance
--- TODO make it index all colors near each other without other colors in between (disregarding black/alpha)
---       this way, for example, the islands near australia all collect into a single region
-adjacentPixelRegionsState :: (PixelRGBA8 -> Bool) -> [(Int, Int)] -> Image PixelRGBA8 -> I.IntSet -> S.State (I.IntSet) [[(Int, Int)]]
-adjacentPixelRegionsState _ [] _ _ = return []
-adjacentPixelRegionsState f ((x,y):queue) i visited = do
-            if isVisited (pToInt (imageWidth i) (x,y)) visited then adjacentPixelRegionsState f queue i visited
+adjacentPixelRegionsState :: [(Int, Int)] -> Image PixelRGBA8 -> S.State (I.IntSet) [[(Int, Int)]]
+adjacentPixelRegionsState [] _ = return []
+adjacentPixelRegionsState ((x,y):queue) i = do
+            checked <- S.get
+            if isVisited (pToInt (imageWidth i) (x,y)) checked || isTransparent (pixelAt i x y) then
+                adjacentPixelRegionsState queue i
             else do
-                checked <- S.get
-                if not (outOfBounds (x,y) i) then do
-                    s  <- if isVisited (pToInt (imageWidth i) (x,y)) checked then return [] else checkPixel (x, y)
-                    let queue' = (x+1, y):(x-1, y):(x, y+1):(x, y-1):queue
-                    (s:) <$> (adjacentPixelRegionsState f queue' i $ I.insert (pToInt (imageWidth i) (x,y)) visited)
-                else
-                    adjacentPixelRegionsState f queue i visited
-    where checkPixel (x, y) =
-                if not (f (pixelAt i x y)) then do
-                   S.modify $ I.insert (pToInt (imageWidth i) (x,y))
-                   return []
-                else adjacentPixelsState (x,y) i
+                r <- adjacentPixelsState (x, y) i
+                (r:) <$> adjacentPixelRegionsState queue i
+        where
+            isTransparent :: PixelRGBA8 -> Bool
+            isTransparent = (==0) . pixelOpacity
 
 -- gets the list of adjacent pixels of the same color
 adjacentPixels xy i = S.evalState (adjacentPixelsState xy i) mempty

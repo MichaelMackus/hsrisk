@@ -1,4 +1,4 @@
-module Game (gameLoop, runGame, indexFilter) where
+module Game (gameLoop, runGame) where
 
 import Game.Types
 import Game.Renderer
@@ -25,7 +25,7 @@ runGame window renderer image = do
     image' <- loadImage "res/image/risk-map-connected-regions.png"
     seq image' $ putStrLn "Image loaded"
     forkIO $ do
-        let index = indexImage indexFilter image'
+        let index = indexImage image'
         -- TODO initialize image regions to default color
         seq (length $ colorRegions index) (putStrLn "Image indexed")
         atomically $ writeTVar shared (Just index)
@@ -34,12 +34,6 @@ runGame window renderer image = do
         (Just index) <- atomically $ readTVar shared
         regions      <- createTexturesFromIndex renderer index
         State.evalStateT (runReaderT gameLoop (RendererEnv window renderer texture index regions)) (GameState True Nothing) 
-
-indexFilter :: PixelRGBA8 -> Bool
-indexFilter p = not (isTransparent p)
-    where
-      isTransparent :: PixelRGBA8 -> Bool
-      isTransparent = (==0) . pixelOpacity
 
 waitUntilLoaded :: Renderer -> Font.Font -> TVar (Maybe IndexedImage) -> IO () -> IO ()
 waitUntilLoaded r f shared finally = do
