@@ -36,11 +36,11 @@ updateRenderer = do
   liftIO $ clear r
   liftIO $ rendererDrawColor r $= bgColor
   maxSize <- get . windowSize =<< asks window
-  texInfo <- queryTexture =<< asks texture
-  tex     <- asks texture
+  texture <- asks background
+  texInfo <- queryTexture texture
   --target  <- mkRectangleWithin (textureDimensions texInfo) maxSize
   target  <- liftIO $ mkRectangleCroppedTo (textureDimensions texInfo) maxSize
-  liftIO $ copy r tex Nothing (Just target)
+  liftIO $ copy r texture Nothing (Just target)
 
   r   <- asks renderer
   i   <- asks index
@@ -48,10 +48,10 @@ updateRenderer = do
   case reg of
     Nothing  -> return ()
     Just reg -> do
-      (rect, tex) <- getRegion reg
+      (rect, tex) <- getTerritory reg
       liftIO $ copy r tex Nothing (Just rect)
 
-getRegion :: Int -> GameRenderer (Rectangle CInt, Texture)
-getRegion reg = do
-    rs <- asks regions
+getTerritory :: Int -> GameRenderer (Rectangle CInt, Texture)
+getTerritory reg = do
+    rs <- asks territories
     return (rs !! reg)

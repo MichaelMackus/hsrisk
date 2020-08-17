@@ -21,10 +21,23 @@ liftGame g = do
 data RendererEnv = RendererEnv {
   window :: Window,
   renderer :: Renderer,
-  texture :: Texture,
+  background :: Texture,
   index :: IndexedImage,
-  regions :: [(Rectangle CInt, Texture)]
+  territories :: [(Rectangle CInt, Texture)]
+  -- territories :: [Territory]
 }
+
+data Territory = Territory {
+  continent   :: Continent,
+  tRenderData :: (Rectangle CInt, Texture),
+  tNumberLoc  :: Point V2 CInt
+}
+
+data Continent = Continent {
+  ctype          :: ContinentType,
+  cAnnotationLoc :: Point V2 CInt
+}
+data ContinentType = NAmerica | SAmerica | Europe | Asia | Africa | Australia deriving Eq
 
 data GameState = GameState {
   playing :: Bool, region :: Maybe Int
