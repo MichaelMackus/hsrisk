@@ -23,12 +23,12 @@ data RendererEnv = RendererEnv {
   renderer :: Renderer,
   background :: Texture,
   index :: IndexedImage,
-  territories :: [(Rectangle CInt, Texture)]
-  -- territories :: [Territory]
+  territories :: [Territory]
 }
 
 data Territory = Territory {
   continent   :: Continent,
+  connectedTo :: [Territory],
   tRenderData :: (Rectangle CInt, Texture),
   tNumberLoc  :: Point V2 CInt
 }

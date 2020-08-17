@@ -52,6 +52,7 @@ updateRenderer = do
       liftIO $ copy r tex Nothing (Just rect)
 
 getTerritory :: Int -> GameRenderer (Rectangle CInt, Texture)
-getTerritory reg = do
-    rs <- asks territories
-    return (rs !! reg)
+getTerritory r = do
+    ts <- asks territories
+    let t = ts !! r
+    return (tRenderData t)

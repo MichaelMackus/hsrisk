@@ -16,7 +16,7 @@ import qualified SDL.Font as Font
 initGame :: Window -> Renderer -> IO (Maybe RendererEnv)
 initGame window renderer = do
     Font.initialize
-    font     <- Font.load "res/font/LiberationSans-Regular.ttf" 16
+    font   <- Font.load "res/font/LiberationSans-Regular.ttf" 16
     {-- load game assets in separate thread --}
     shared <- atomically $ newTVar Nothing
     forkIO $ do
@@ -30,18 +30,8 @@ initGame window renderer = do
         image' <- loadImage "res/image/risk-map-connected-regions.png"
         putStrLn "Index image loaded"
         let index   = indexImage image'
-            images' = map f [0..length (indexRegions index) - 1] -- this is necessary so we mask out colors not in original map
-                where f r             = let ((sx,sy),i) = indexRegions index !! r
-                                            (w,h) = (imageWidth i, imageHeight i)
-                                        in  generateImage (g r (sx,sy)) w h :: Image PixelRGBA8
-                      g r (sx,sy) x y = let pi        = pixelAt image (sx + x) (sy + y)
-                                            r'        = findPixel index (sx + x, sy + y)
-                                            inCountry = not (isTransparent pi || pi == black)
-                                        in  case r' of
-                                                (Just r') | r' == r && inCountry
-                                                                       -> PixelRGBA8 255 255 255 125
-                                                          | otherwise  -> PixelRGBA8 0   0   0   0
-                                                Nothing                -> PixelRGBA8 0   0   0   0
+            {-- the following is necessary so we mask out colors not in original map --}
+            images' = map (initRegionImage image index) [0..length (indexRegions index) - 1] 
         -- TODO initialize image regions to default color
         when (length (indexRegions index) /= 42) (error "Unable to continue - territories in index does not equal 42!")
         putStrLn "Image indexed"
@@ -50,8 +40,8 @@ initGame window renderer = do
         surfaces <- mapM createSurfaceFromImage images'
         textures <- mapM (createTextureFromSurface renderer) surfaces
         putStrLn "Region textures loaded"
-        let regions = zip (regionRects index) textures
-            env     = RendererEnv window renderer texture index regions
+        let territories = initTerritories index image textures
+            env         = RendererEnv window renderer texture index territories
         atomically $ writeTVar shared (Just env)
     {-- wait to play game until assets are loaded --}
     waitUntilLoaded renderer font shared
@@ -64,3 +54,25 @@ waitUntilLoaded r f shared = do
     else do
         renderLoadingScreen r f
         waitUntilLoaded r f shared
+
+initTerritories :: IndexedImage -> Image PixelRGBA8 -> [Texture] -> [Territory]
+initTerritories _     _     []       = []
+initTerritories index bgimg textures = map initTerritory [0..length textures - 1]
+    where rects = regionRects index
+          initTerritory r = Territory cont conns (rects !! r, textures !! r) numberLoc
+              where cont      = Continent NAmerica (fromXY (0,0))
+                    conns     = []
+                    numberLoc = fromXY (0,0)
+
+initRegionImage :: Image PixelRGBA8 -> IndexedImage -> Int -> Image PixelRGBA8
+initRegionImage bgimg index r = let ((sx,sy),i) = indexRegions index !! r
+                                    (w,h) = (imageWidth i, imageHeight i)
+                                in  generateImage (g r (sx,sy)) w h :: Image PixelRGBA8
+    where g r (sx,sy) x y = let pi        = pixelAt bgimg (sx + x) (sy + y)
+                                r'        = findPixel index (sx + x, sy + y)
+                                inCountry = not (isTransparent pi || pi == black)
+                            in  case r' of
+                                    (Just r') | r' == r && inCountry
+                                                           -> PixelRGBA8 255 255 255 125
+                                              | otherwise  -> PixelRGBA8 0   0   0   0
+                                    Nothing                -> PixelRGBA8 0   0   0   0
