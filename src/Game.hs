@@ -23,7 +23,7 @@ runGame window renderer = do
     shared <- atomically $ newTVar Nothing
     forkIO $ do
         {-- load background image --}
-        image <- loadImage "res/image/Risk_game_map_fixed.png"
+        image <- loadImage "res/image/risk-map-continent-colors.png"
         putStrLn "Image loaded"
         {-- convert image to SDL --}
         surface  <- createSurfaceFromImage image
@@ -32,13 +32,18 @@ runGame window renderer = do
         image' <- loadImage "res/image/risk-map-connected-regions.png"
         putStrLn "Index image loaded"
         let index   = indexImage image'
-            images' = map f (indexRegions index) -- this is necessary so we mask out colors not in original map
-                where f ((sx,sy),i)   = let (w,h) = (imageWidth i, imageHeight i)
-                                        in  generateImage (g (sx,sy) i) w h :: Image PixelRGBA8
-                      g (sx,sy) i x y = let pi   = pixelAt image (sx + x) (sy + y)
-                                            pi'  = pixelAt i x y
-                                        in  if isTransparent pi || pi /= pi' then PixelRGBA8 0 0 0 0
-                                            else PixelRGBA8 255 255 255 125
+            images' = map f [0..length (indexRegions index) - 1] -- this is necessary so we mask out colors not in original map
+                where f r             = let ((sx,sy),i) = indexRegions index !! r
+                                            (w,h) = (imageWidth i, imageHeight i)
+                                        in  generateImage (g r (sx,sy)) w h :: Image PixelRGBA8
+                      g r (sx,sy) x y = let pi        = pixelAt image (sx + x) (sy + y)
+                                            r'        = findPixel index (sx + x, sy + y)
+                                            inCountry = not (isTransparent pi || pi == black)
+                                        in  case r' of
+                                                (Just r') | r' == r && inCountry
+                                                                       -> PixelRGBA8 255 255 255 125
+                                                          | otherwise  -> PixelRGBA8 0   0   0   0
+                                                Nothing                -> PixelRGBA8 0   0   0   0
         -- TODO initialize image regions to default color
         when (length (indexRegions index) /= 42) (error "Unable to continue - territories in index does not equal 42!")
         putStrLn "Image indexed"
