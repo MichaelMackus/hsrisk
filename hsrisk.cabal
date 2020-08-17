@@ -28,6 +28,7 @@ source-repository head
 library
   exposed-modules:
       Game
+    , Game.Init
     , Game.Types
     , Game.Renderer
     , Graphics.Rect
