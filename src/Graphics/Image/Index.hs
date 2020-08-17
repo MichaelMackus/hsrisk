@@ -3,6 +3,10 @@ module Graphics.Image.Index
      ,indexImage
      ,filterIndex
      ,findPixel
+     ,regionStartX
+     ,regionStartY
+     ,regionHeight
+     ,regionWidth
     ) where
 
 import Graphics.Image.Util

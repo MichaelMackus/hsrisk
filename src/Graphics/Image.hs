@@ -4,6 +4,7 @@ module Graphics.Image
      ,createSurfacesFromIndex
      ,createTexturesFromIndex
      ,regionRects
+     ,regionRect
      ,module Graphics.Image.Index
     ) where
 
@@ -41,9 +42,12 @@ createTexturesFromIndex renderer index = do
         mapM (createTextureFromSurface renderer) surfaces
 
 regionRects :: Integral a => IndexedImage -> [Rectangle a]
-regionRects index = map f (indexRegions index)
-    where f ((x,y), i) = let (w,h) = (fromIntegral (imageWidth i), fromIntegral (imageHeight i))
-                         in  Rectangle (fromXY (x,y)) (V2 w h)
+regionRects index = map (uncurry regionRect) (indexRegions index)
+
+regionRect :: Integral a => (Int, Int) -> Image PixelRGBA8 -> Rectangle a
+regionRect (x,y) i = let (w,h) = (fromIntegral (imageWidth i), fromIntegral (imageHeight i))
+                     in  Rectangle (fromXY (x,y)) (V2 w h)
+
 
 systemFormat :: PixelFormat
 systemFormat = case getSystemEndianness of

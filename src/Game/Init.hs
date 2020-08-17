@@ -41,7 +41,7 @@ initGame window renderer = do
         textures <- mapM (createTextureFromSurface renderer) surfaces
         putStrLn "Region textures loaded"
         let territories = initTerritories index image textures
-            env         = RendererEnv window renderer texture index territories
+            env         = RendererEnv window renderer texture font index territories
         atomically $ writeTVar shared (Just env)
     {-- wait to play game until assets are loaded --}
     waitUntilLoaded renderer font shared
@@ -62,7 +62,10 @@ initTerritories index bgimg textures = map initTerritory [0..length textures - 1
           initTerritory r = Territory cont conns (rects !! r, textures !! r) numberLoc
               where cont      = Continent NAmerica (fromXY (0,0))
                     conns     = []
-                    numberLoc = fromXY (0,0)
+                    region    = colorRegions index !! r
+                    (x,y)     = (regionStartX region, regionStartY region)
+                    (w,h)     = (regionWidth  region, regionHeight region)
+                    numberLoc = fromXY (x + floor ((fromIntegral w)/2), y + floor ((fromIntegral h)/2))
 
 initRegionImage :: Image PixelRGBA8 -> IndexedImage -> Int -> Image PixelRGBA8
 initRegionImage bgimg index r = let ((sx,sy),i) = indexRegions index !! r
