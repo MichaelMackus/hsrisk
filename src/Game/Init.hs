@@ -3,6 +3,7 @@ module Game.Init where
 import Game.Types
 import Game.Renderer
 import Graphics.Image
+import Graphics.Image.Index
 import Graphics.Image.Util
 
 import Codec.Picture (Image(..), PixelRGBA8(..), generateImage, pixelAt)
@@ -60,12 +61,25 @@ initTerritories _     _     []       = []
 initTerritories index bgimg textures = map initTerritory [0..length textures - 1]
     where rects = regionRects index
           initTerritory r = Territory cont conns (rects !! r, textures !! r) numberLoc
-              where cont      = Continent NAmerica (fromXY (0,0))
+              where cont      = case contType of
+                                  Just t  -> Continent t (fromXY (0,0))
+                                  Nothing -> error ("Invalid region color: " ++ show tColor)
+                    tColor    = regionColor bgimg (colorRegions index !! r) 
+                    contType  = tColor >>= toCountryType
                     conns     = []
                     region    = colorRegions index !! r
                     (x,y)     = (regionStartX region, regionStartY region)
                     (w,h)     = (regionWidth  region, regionHeight region)
                     numberLoc = fromXY (x + floor ((fromIntegral w)/2), y + floor ((fromIntegral h)/2))
+
+toCountryType :: PixelRGBA8 -> Maybe (ContinentType)
+toCountryType (PixelRGBA8 255 255 0   255) = Just NAmerica
+toCountryType (PixelRGBA8 255 0   0   255) = Just SAmerica
+toCountryType (PixelRGBA8 0   0   255 255) = Just Europe
+toCountryType (PixelRGBA8 128 64  0   255) = Just Africa
+toCountryType (PixelRGBA8 0   164 0   255) = Just Asia
+toCountryType (PixelRGBA8 128 0   255 255) = Just Australia
+toCountryType otherwise = Nothing
 
 initRegionImage :: Image PixelRGBA8 -> IndexedImage -> Int -> Image PixelRGBA8
 initRegionImage bgimg index r = let ((sx,sy),i) = indexRegions index !! r

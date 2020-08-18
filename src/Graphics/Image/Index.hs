@@ -7,6 +7,7 @@ module Graphics.Image.Index
      ,regionStartY
      ,regionHeight
      ,regionWidth
+     ,regionColor
     ) where
 
 import Graphics.Image.Util
@@ -128,6 +129,13 @@ regionHeight r  = let ys = map snd r in maximum ys - minimum ys + 1
 regionWidth :: [(Int, Int)] -> Int
 regionWidth [] = 0
 regionWidth r  = let xs = map fst r in maximum xs - minimum xs + 1
+
+-- get the color associated with the region
+regionColor :: Image PixelRGBA8 -> [(Int, Int)] -> Maybe (PixelRGBA8)
+regionColor img [] = Nothing
+regionColor img ((x,y):xys) = let p = pixelAt img x y
+                              in  if isTransparent p then regionColor img xys
+                                  else Just p
 
 -- convenience function so we can use IntSet for performance
 isVisited :: Int -> I.IntSet -> Bool

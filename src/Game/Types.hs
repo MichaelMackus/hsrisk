@@ -39,7 +39,7 @@ data Continent = Continent {
   ctype          :: ContinentType,
   cAnnotationLoc :: Point V2 CInt
 } deriving Eq
-data ContinentType = NAmerica | SAmerica | Europe | Asia | Africa | Australia deriving Eq
+data ContinentType = NAmerica | SAmerica | Europe | Asia | Africa | Australia deriving (Eq, Ord, Show)
 
 data GameState = GameState {
   playing :: Bool, region :: Maybe Int
