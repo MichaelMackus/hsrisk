@@ -30,7 +30,7 @@ data RendererEnv = RendererEnv {
 
 data Territory = Territory {
   continent   :: Continent,
-  connectedTo :: [Territory],
+  connectedTo :: [Int],
   tRenderData :: (Rectangle CInt, Texture),
   tNumberLoc  :: Point V2 CInt
 } deriving Eq

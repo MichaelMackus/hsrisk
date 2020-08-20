@@ -7,9 +7,10 @@ import Graphics.Image.Index
 import Graphics.Image.Util
 
 import Codec.Picture (Image(..), PixelRGBA8(..), generateImage, pixelAt)
-import Control.Monad (when)
+import Control.Monad (when, forM_)
 import Control.Concurrent
 import Control.Concurrent.STM
+import Data.Char (isDigit, isSpace)
 import Data.Maybe (isJust)
 import SDL
 import qualified SDL.Font as Font
@@ -41,8 +42,8 @@ initGame window renderer = do
         surfaces <- mapM createSurfaceFromImage images'
         textures <- mapM (createTextureFromSurface renderer) surfaces
         putStrLn "Region textures loaded"
-        let territories = initTerritories index image textures
-            env         = RendererEnv window renderer texture font index territories
+        territories <- initTerritories index image textures
+        let env         = RendererEnv window renderer texture font index territories
         atomically $ writeTVar shared (Just env)
     {-- wait to play game until assets are loaded --}
     waitUntilLoaded renderer font shared
@@ -56,21 +57,46 @@ waitUntilLoaded r f shared = do
         renderLoadingScreen r f
         waitUntilLoaded r f shared
 
-initTerritories :: IndexedImage -> Image PixelRGBA8 -> [Texture] -> [Territory]
-initTerritories _     _     []       = []
-initTerritories index bgimg textures = map initTerritory [0..length textures - 1]
+initTerritories :: IndexedImage -> Image PixelRGBA8 -> [Texture] -> IO [Territory]
+initTerritories _     _     []       = return []
+initTerritories index bgimg textures = do
+        ts <- mapM initTerritory [0..length textures - 1]
+        let failed = filter (checkConnection ts) [0..length ts - 1]
+        forM_ failed $ \f -> do
+            putStrLn ("Failed connection for region " ++ show f)
+        return ts
     where rects = regionRects index
-          initTerritory r = Territory cont conns (rects !! r, textures !! r) numberLoc
+          initTerritory r = getConnections r >>= \conns -> return (Territory cont conns (rects !! r, textures !! r) numberLoc)
               where cont      = case contType of
                                   Just t  -> Continent t (fromXY (0,0))
                                   Nothing -> error ("Invalid region color: " ++ show tColor)
                     tColor    = regionColor bgimg (colorRegions index !! r) 
                     contType  = tColor >>= toCountryType
-                    conns     = []
                     region    = colorRegions index !! r
                     (x,y)     = (regionStartX region, regionStartY region)
                     (w,h)     = (regionWidth  region, regionHeight region)
                     numberLoc = fromXY (x + floor ((fromIntegral w)/2), y + floor ((fromIntegral h)/2))
+
+-- load territory connections from file
+getConnections :: Int -> IO [Int]
+getConnections tid = do
+        ls <- filter findMatchingLine . lines <$> readFile "res/territory-connections"
+        if length ls == 0 then do
+            putStrLn ("Unable to find connections for territory " ++ show tid)
+            return []
+        else return (parseConnection $ head ls)
+    where
+        findMatchingLine l = let digits = takeWhile isDigit l
+                             in  if length digits > 0 then read digits == tid
+                                 else False
+        parseConnection    = map read . splitDigits . dropWhile isSpace . dropWhile isDigit
+        splitDigits        = words . map (\c -> if isDigit c then c else ' ')
+
+-- check for reverse connections
+checkConnection :: [Territory] -> Int -> Bool
+checkConnection ts ti = let t      = ts !! ti
+                            f ti'  = ti `elem` connectedTo (ts !! ti')
+                        in  length (filter f (connectedTo t)) /= length (connectedTo t)
 
 toCountryType :: PixelRGBA8 -> Maybe (ContinentType)
 toCountryType (PixelRGBA8 255 255 0   255) = Just NAmerica
