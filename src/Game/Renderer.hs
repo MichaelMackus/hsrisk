@@ -70,11 +70,17 @@ updateRenderer = do
   case reg of
     Nothing  -> return ()
     Just reg -> do
-      (rect, tex) <- getTerritory reg
+      -- highlight territory region
+      t <- getTerritory reg
+      let (rect, tex) = tRenderData t
+      textureColorMod tex $= V3 255 255 255
       liftIO $ copy r tex Nothing (Just rect)
+      -- highlight territory connections (TODO another color)
+      conns <- mapM getTerritory (connectedTo t)
+      forM_ conns $ \t -> do
+          let (rect, tex) = tRenderData t
+          textureColorMod tex $= V3 200 200 200
+          liftIO $ copy r tex Nothing (Just rect)
 
-getTerritory :: Int -> GameRenderer (Rectangle CInt, Texture)
-getTerritory r = do
-    ts <- asks territories
-    let t = ts !! r
-    return (tRenderData t)
+getTerritory :: Int -> GameRenderer Territory
+getTerritory r = asks (\c -> territories c !! r)
