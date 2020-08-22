@@ -7,14 +7,15 @@ import Graphics.Image
 import Graphics.Image.Util
 
 import Control.Monad.Reader
+import Data.Maybe (isJust)
 import SDL
 import qualified Control.Monad.State as State
 
 runGame :: Window -> Renderer -> IO ()
 runGame window renderer = do
-    (Just env) <- initGame window renderer
+    (Just (env, st)) <- initGame window renderer
     putStrLn "Asset loading thread finished"
-    State.evalStateT (runReaderT gameLoop env) (GameState True Nothing) 
+    State.evalStateT (runReaderT gameLoop env) st
 
 gameLoop :: GameRenderer ()
 gameLoop = do
@@ -25,16 +26,17 @@ gameLoop = do
   {-- render to screen & continue playing --}
   liftIO . present =<< asks renderer
   playing <- State.gets playing
-  when playing gameLoop
+  when (isJust playing) gameLoop
 
 handleEvent :: EventPayload -> GameRenderer ()
 -- handleEvent (MouseButtonEvent  e)
 handleEvent (MouseMotionEvent e) = do
   let (x, y) = toXY (mouseMotionEventPos e)
-  i <- asks index
+  i  <- asks index
+  ts <- State.gets territories
   case findPixel i (x,y) of
-    Just r  -> State.modify (\s -> s { region = Just r })
-    Nothing -> State.modify (\s -> s { region = Nothing })
+    Just tid -> State.modify (\s -> s { hovering = Just (ts !! tid) })
+    Nothing  -> State.modify (\s -> s { hovering = Nothing })
 handleEvent (KeyboardEvent e)
     | keyboardEventKeyMotion e == Pressed &&
       keysymKeycode (keyboardEventKeysym e) == KeycodeQ = liftGame gquit

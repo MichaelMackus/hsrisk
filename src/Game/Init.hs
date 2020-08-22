@@ -7,15 +7,16 @@ import Graphics.Image.Index
 import Graphics.Image.Util
 
 import Codec.Picture (Image(..), PixelRGBA8(..), generateImage, pixelAt)
-import Control.Monad (when, forM_)
+import Control.Monad (when, forM_, forM)
 import Control.Concurrent
 import Control.Concurrent.STM
 import Data.Char (isDigit, isSpace)
-import Data.Maybe (isJust)
+import Data.Maybe (isJust, catMaybes, fromMaybe)
 import SDL
+import qualified Data.Map as M
 import qualified SDL.Font as Font
 
-initGame :: Window -> Renderer -> IO (Maybe RendererEnv)
+initGame :: Window -> Renderer -> IO (Maybe (RendererEnv, GameState))
 initGame window renderer = do
     Font.initialize
     font   <- Font.load "res/font/LiberationSans-Regular.ttf" 16
@@ -42,14 +43,19 @@ initGame window renderer = do
         surfaces <- mapM createSurfaceFromImage images'
         textures <- mapM (createTextureFromSurface renderer) surfaces
         putStrLn "Region textures loaded"
-        territories <- initTerritories index image textures
-        let env         = RendererEnv window renderer texture font index territories
-        atomically $ writeTVar shared (Just env)
+        let ts     = initTerritories index image
+            texMap = M.fromList (zip ts textures)
+        conns <- getConnections ts
+        forM_ (invalidConnections conns) $ \f -> do
+            putStrLn ("Failed connection for region " ++ show (territoryLoc f))
+        let env    = RendererEnv window renderer texture font index texMap
+            st     = GameState (Just (Player 1)) [] Nothing ts conns mempty
+        atomically $ writeTVar shared (Just (env, st))
     {-- wait to play game until assets are loaded --}
     waitUntilLoaded renderer font shared
     atomically $ readTVar shared
 
-waitUntilLoaded :: Renderer -> Font.Font -> TVar (Maybe RendererEnv) -> IO ()
+--waitUntilLoaded :: Renderer -> Font.Font -> TVar (Maybe RendererEnv) -> IO ()
 waitUntilLoaded r f shared = do
     index <- atomically $ readTVar shared
     if isJust index then return ()
@@ -57,16 +63,10 @@ waitUntilLoaded r f shared = do
         renderLoadingScreen r f
         waitUntilLoaded r f shared
 
-initTerritories :: IndexedImage -> Image PixelRGBA8 -> [Texture] -> IO [Territory]
-initTerritories _     _     []       = return []
-initTerritories index bgimg textures = do
-        ts <- mapM initTerritory [0..length textures - 1]
-        let failed = filter (checkConnection ts) [0..length ts - 1]
-        forM_ failed $ \f -> do
-            putStrLn ("Failed connection for region " ++ show f)
-        return ts
-    where rects = regionRects index
-          initTerritory r = getConnections r >>= \conns -> return (Territory cont conns (rects !! r, textures !! r) numberLoc)
+initTerritories :: IndexedImage -> Image PixelRGBA8 -> [Territory]
+initTerritories index bgimg = map initTerritory [0..length points - 1]
+    where points = map (fromXY . fst) (indexRegions index)
+          initTerritory r = Territory (points !! r) cont
               where cont      = case contType of
                                   Just t  -> Continent t (fromXY (0,0))
                                   Nothing -> error ("Invalid region color: " ++ show tColor)
@@ -77,14 +77,19 @@ initTerritories index bgimg textures = do
                     (w,h)     = (regionWidth  region, regionHeight region)
                     numberLoc = fromXY (x + floor ((fromIntegral w)/2), y + floor ((fromIntegral h)/2))
 
+getConnections :: [Territory] -> IO (Map Territory [Territory])
+getConnections ts = M.fromList . zip ts <$> mapM (getTConnections ts) [0..length ts - 1]
+
 -- load territory connections from file
-getConnections :: Int -> IO [Int]
-getConnections tid = do
+getTConnections :: [Territory] -> Int -> IO [Territory]
+getTConnections ts tid = do
         ls <- filter findMatchingLine . lines <$> readFile "res/territory-connections"
         if length ls == 0 then do
             putStrLn ("Unable to find connections for territory " ++ show tid)
             return []
-        else return (parseConnection $ head ls)
+        else
+            let connIds = parseConnection $ head ls
+            in  return (map (\tid -> ts !! tid) connIds)
     where
         findMatchingLine l = let digits = takeWhile isDigit l
                              in  if length digits > 0 then read digits == tid
@@ -92,11 +97,20 @@ getConnections tid = do
         parseConnection    = map read . splitDigits . dropWhile isSpace . dropWhile isDigit
         splitDigits        = words . map (\c -> if isDigit c then c else ' ')
 
--- check for reverse connections
-checkConnection :: [Territory] -> Int -> Bool
-checkConnection ts ti = let t      = ts !! ti
-                            f ti'  = ti `elem` connectedTo (ts !! ti')
-                        in  length (filter f (connectedTo t)) /= length (connectedTo t)
+invalidConnections :: Map Territory [Territory] -> [Territory]
+invalidConnections conns = let ts = M.keys conns
+                           in  filter (not . checkConnections conns) ts
+    where
+        checkConnections :: Map Territory [Territory] -> Territory -> Bool
+        checkConnections tconns t =
+            let conns = fromMaybe (err t) (M.lookup t tconns)
+                f t'  = t `elem` (fromMaybe (err t') (M.lookup t' tconns))
+                err i = error ("Unable to find " ++ show (territoryLoc i))
+            in  all f conns
+
+-- checkConnection :: [(Territory, [Territory])] -> (Territory, [Territory]) -> Bool
+-- checkConnection tconns (t, conns) = let f t' = maybe False id ((t `elem`) <$> lookup t' tconns)
+--                                     in  length (filter f conns) /= length conns
 
 toCountryType :: PixelRGBA8 -> Maybe (ContinentType)
 toCountryType (PixelRGBA8 255 255 0   255) = Just NAmerica

@@ -47,7 +47,7 @@ updateRenderer = do
   liftIO $ copy r texture Nothing (Just target)
 
   {-- draw font (WIP) --}
-  ts      <- asks territories
+  ts      <- State.gets territories
   forM ts $ \t -> do 
       let (Just i) = L.elemIndex t ts
       idx      <- asks index
@@ -66,21 +66,19 @@ updateRenderer = do
   {-- draw highlighted territory --}
   r   <- asks renderer
   i   <- asks index
-  reg <- State.gets region
-  case reg of
+  t   <- State.gets hovering
+  case t of
     Nothing  -> return ()
-    Just reg -> do
+    Just t   -> do
       -- highlight territory region
-      t <- getTerritory reg
-      let (rect, tex) = tRenderData t
+      tex  <- territoryTex t
+      rect <- territoryRect t
       textureColorMod tex $= V3 255 255 255
       liftIO $ copy r tex Nothing (Just rect)
       -- highlight territory connections (TODO another color)
-      conns <- mapM getTerritory (connectedTo t)
+      conns <- connectedTo t
       forM_ conns $ \t -> do
-          let (rect, tex) = tRenderData t
+          tex  <- territoryTex t
+          rect <- territoryRect t
           textureColorMod tex $= V3 200 200 200
           liftIO $ copy r tex Nothing (Just rect)
-
-getTerritory :: Int -> GameRenderer Territory
-getTerritory r = asks (\c -> territories c !! r)
