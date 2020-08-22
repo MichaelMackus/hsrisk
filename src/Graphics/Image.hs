@@ -9,7 +9,7 @@ module Graphics.Image
     ) where
 
 import Graphics.Image.Index
-import Graphics.Image.Util
+import Util
 
 import Codec.Picture
 import Control.Monad (forM, when)

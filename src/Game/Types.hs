@@ -31,10 +31,13 @@ data GameState = GameState {
   hovering :: Maybe Territory,
   territories :: [Territory],
   territoryConnections :: Map Territory [Territory],
-  occupiedTerritories :: Map Territory (Maybe Player, Int)
+  occupiedTerritories :: Map Territory (Player, Int)
 }
 
-data Player = Player Int deriving Eq
+data Player = Player Int | Neutral Int deriving Eq
+instance Show Player where
+    show (Player  n) = "P" ++ show n
+    show (Neutral n) = "N" ++ show n
 
 data Territory = Territory {
   territoryLoc :: Point V2 CInt,

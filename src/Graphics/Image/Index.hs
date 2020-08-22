@@ -10,7 +10,7 @@ module Graphics.Image.Index
      ,regionColor
     ) where
 
-import Graphics.Image.Util
+import Util
 
 import Codec.Picture
 import qualified Control.Monad.State as S

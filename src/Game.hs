@@ -3,8 +3,9 @@ module Game (gameLoop, runGame) where
 import Game.Init
 import Game.Types
 import Game.Renderer
+import Game.Types
 import Graphics.Image
-import Graphics.Image.Util
+import Util
 
 import Control.Monad.Reader
 import Data.Maybe (isJust)
@@ -13,7 +14,7 @@ import qualified Control.Monad.State as State
 
 runGame :: Window -> Renderer -> IO ()
 runGame window renderer = do
-    (Just (env, st)) <- initGame window renderer
+    (Just (env, st)) <- initGame 2 window renderer
     putStrLn "Asset loading thread finished"
     State.evalStateT (runReaderT gameLoop env) st
 

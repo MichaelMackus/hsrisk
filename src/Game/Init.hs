@@ -1,10 +1,11 @@
+{-# LANGUAGE TupleSections #-}
 module Game.Init where
 
 import Game.Types
 import Game.Renderer
 import Graphics.Image
 import Graphics.Image.Index
-import Graphics.Image.Util
+import Util
 
 import Codec.Picture (Image(..), PixelRGBA8(..), generateImage, pixelAt)
 import Control.Monad (when, forM_, forM)
@@ -13,11 +14,16 @@ import Control.Concurrent.STM
 import Data.Char (isDigit, isSpace)
 import Data.Maybe (isJust, catMaybes, fromMaybe)
 import SDL
+import System.Random
+import System.Random.Shuffle
 import qualified Data.Map as M
 import qualified SDL.Font as Font
 
-initGame :: Window -> Renderer -> IO (Maybe (RendererEnv, GameState))
-initGame window renderer = do
+maxPlayers = 5
+
+initGame :: Int -> Window -> Renderer -> IO (Maybe (RendererEnv, GameState))
+initGame playerCnt window renderer = do
+    when (playerCnt <= 0 || playerCnt > maxPlayers) (error "Player count must be 1-5")
     Font.initialize
     font   <- Font.load "res/font/LiberationSans-Regular.ttf" 16
     {-- load game assets in separate thread --}
@@ -43,13 +49,17 @@ initGame window renderer = do
         surfaces <- mapM createSurfaceFromImage images'
         textures <- mapM (createTextureFromSurface renderer) surfaces
         putStrLn "Region textures loaded"
-        let ts     = initTerritories index image
-            texMap = M.fromList (zip ts textures)
-        conns <- getConnections ts
+        {-- initialize territories & game state --}
+        let ts      = initTerritories index image
+            texMap  = M.fromList (zip ts textures)
+            players = map (\n -> if n <= playerCnt then Player n else Player n) [1..maxPlayers]
+        conns    <- getConnections ts
+        occupied <- initOccupied ts players
         forM_ (invalidConnections conns) $ \f -> do
             putStrLn ("Failed connection for region " ++ show (territoryLoc f))
-        let env    = RendererEnv window renderer texture font index texMap
-            st     = GameState (Just (Player 1)) [] Nothing ts conns mempty
+        {-- construct the env and game state --}
+        let env      = RendererEnv window renderer texture font index texMap
+            st       = GameState (Just (head players)) players Nothing ts conns occupied
         atomically $ writeTVar shared (Just (env, st))
     {-- wait to play game until assets are loaded --}
     waitUntilLoaded renderer font shared
@@ -108,10 +118,20 @@ invalidConnections conns = let ts = M.keys conns
                 err i = error ("Unable to find " ++ show (territoryLoc i))
             in  all f conns
 
--- checkConnection :: [(Territory, [Territory])] -> (Territory, [Territory]) -> Bool
--- checkConnection tconns (t, conns) = let f t' = maybe False id ((t `elem`) <$> lookup t' tconns)
---                                     in  length (filter f conns) /= length conns
-
+initOccupied :: [Territory] -> [Player] -> IO (Map Territory (Player, Int))
+initOccupied ts ps = do
+        g <- getStdGen
+        let (shuffledTs, _) = shuffle g ts
+            balancedTs      = reverse (splitBalanced (length ps) shuffledTs)
+        when (length balancedTs /= length ps) (error "Split error while shuffling territories!")
+        return (mkMap balancedTs ps)
+    where mkMap balancedTs ps = let f (p,ts) m = foldr (g p) m ts
+                                    g  p t   m = M.insert t (p, 1) m
+                                in  foldr f mempty (zip ps balancedTs)
+                               -- let l = zip balancedTs (map (,1) ps)
+                               --     f = \(k,v) -> zip balancedTs (repeat vals)
+                               -- in  M.fromList (map f l)
+    
 toCountryType :: PixelRGBA8 -> Maybe (ContinentType)
 toCountryType (PixelRGBA8 255 255 0   255) = Just NAmerica
 toCountryType (PixelRGBA8 255 0   0   255) = Just SAmerica
