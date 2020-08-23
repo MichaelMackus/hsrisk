@@ -7,12 +7,13 @@ import Util.Pathfinder (findPathSimple)
 
 import Control.Monad.Reader
 import Codec.Picture (PixelRGBA8(..))
-import Data.Maybe (fromMaybe, isJust, fromJust)
+import Data.Maybe (fromMaybe, isJust, fromJust, catMaybes)
 import Data.Map ((!))
 import Data.Functor.Identity (runIdentity)
 import Foreign.C.Types
 import SDL
 import qualified Control.Monad.State as State
+import qualified Data.List as L
 import qualified Data.Map as M
 import qualified Data.Set as S
 import qualified SDL.Font as Font
@@ -122,13 +123,28 @@ assignableUnits :: GameRenderer Int
 assignableUnits = do
     p  <- fromMaybe (error "No player") <$> State.gets playing
     ts <- playerTerritories p
-    let def = 3
-    return def
+    cs <- playerContinents p
+    let unitsForTerritories = floor (fromIntegral (length ts) / 3)
+        unitsForContinents  = foldr (\c n -> n + continentValue (ctype c)) 0 cs
+    return $ max 3 (unitsForTerritories + unitsForContinents)
 
 playerTerritories :: Player -> GameRenderer [Territory]
 playerTerritories p = let f t (p',_) ts = if p == p' then (t:ts)
                                           else ts
                       in  return . M.foldrWithKey f [] =<< State.gets occupiedTerritories
+
+playerContinents :: Player -> GameRenderer [Continent]
+playerContinents p = do
+        allTs    <- L.groupBy groupf . L.sortBy sortf <$> allTerritories
+        playerTs <- L.groupBy groupf . L.sortBy sortf <$> playerTerritories p
+        return (catMaybes . map tsToCont . filter (\ts -> ts `elem` allTs) $ playerTs)
+    where groupf    t t' = ctype (continent t) == ctype (continent t')
+          sortf     t t' = compare (ctype (continent t)) (ctype (continent t'))
+          tsToCont []    = Nothing
+          tsToCont (t:_) = Just (continent t)
+
+          -- make things easy and get territories in same order as occupied
+          allTerritories = return . M.foldrWithKey (\t _ ts -> (t:ts)) [] =<< State.gets occupiedTerritories
 
 playerNum :: Player -> Int
 playerNum (Player  n) = n
@@ -150,6 +166,14 @@ continentColor Europe = PixelRGBA8 0   0   255 255
 continentColor Africa = PixelRGBA8 128 64  0   255
 continentColor Asia = PixelRGBA8 0   164 0   255
 continentColor Australia = PixelRGBA8 128 0   255 255
+
+continentValue :: ContinentType -> Int
+continentValue NAmerica = 5
+continentValue SAmerica = 2
+continentValue Europe = 5
+continentValue Africa = 3
+continentValue Asia = 7
+continentValue Australia = 2
 
 playerColor :: Player -> PixelRGBA8
 playerColor p = case p of
