@@ -28,8 +28,9 @@ attack from to = do
             attackersLost = fst (rollAttack attackers defenders g)
             attackersRem  = attackers - attackersLost
             attackersWon  = max 0 (min attackers defenders - attackersLost)
-            defendersLost = defenders - defendersRem
-            defendersRem  = max 0 (defenders - attackersWon)
+            defendersLost = defenders - defendersWon
+            defendersWon  = max 0 (defenders - attackersWon)
+            defendersRem  = occupiedT - defendersLost
             ts'           = if defendersRem > 0 then
                                  -- defender won
                                  M.insert from (p, occupiedF - attackersLost) $ M.insert to (p', occupiedT - defendersLost) ts
