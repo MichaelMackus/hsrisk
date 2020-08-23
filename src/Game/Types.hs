@@ -29,6 +29,7 @@ data RendererEnv = RendererEnv {
 data GameState = GameState {
   playing :: Maybe Player,
   players :: [Player],
+  phase   :: Phase,
   hovering :: Maybe Territory,
   territories :: [Territory],
   territoryConnections :: Map Territory [Territory],
@@ -37,9 +38,7 @@ data GameState = GameState {
 }
 
 data Player = Player Int | Neutral Int deriving Eq
-instance Show Player where
-    show (Player  n) = "P" ++ show n
-    show (Neutral n) = "N" ++ show n
+data Phase = Assign | Attack | Move deriving (Enum, Eq)
 
 data Territory = Territory {
   territoryLoc :: Point V2 CInt,
@@ -74,11 +73,23 @@ territoryRect t = do
     tex     <- territoryTex t
     texInfo <- queryTexture tex
     return (Rectangle loc (textureDimensions texInfo))
-    
+
 connectedTo :: Territory -> GameRenderer [Territory]
 connectedTo t = do
     conns <- M.lookup t <$> State.gets territoryConnections
     return (maybe [] id conns)
+
+newMessage :: String -> GameRenderer ()
+newMessage msg = do
+    msgs <- State.gets messages
+    State.modify (\s -> s { messages = msg:msgs })
+
+changePhase :: Phase -> GameRenderer ()
+changePhase p
+    | p == Assign = let newUnits = 3
+                    in  newMessage ("You get " ++ show newUnits ++ " units! Assign them to your territories." )
+    | p == Attack = newMessage ("Attack phase - choose territory to attack from, then choose a target. Enter when done.")
+    | p == Move   = newMessage ("Move phase - choose territory to move from, then choose a target. Enter when done.")
 
 continentType :: PixelRGBA8 -> Maybe (ContinentType)
 continentType (PixelRGBA8 255 255 0   255) = Just NAmerica

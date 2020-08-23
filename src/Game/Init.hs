@@ -61,7 +61,7 @@ initGame playerCnt window renderer = do
             putStrLn ("Failed connection for region " ++ show (territoryLoc f))
         {-- construct the env and game state --}
         let env      = RendererEnv window renderer texture font index texMap
-            st       = GameState (Just (head players)) players Nothing ts conns occupied ["New game"]
+            st       = GameState (Just (head players)) players Assign Nothing ts conns occupied []
         atomically $ writeTVar shared (Just (env, st))
     {-- wait to play game until assets are loaded --}
     waitUntilLoaded window renderer font shared
