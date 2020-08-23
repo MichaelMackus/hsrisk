@@ -26,15 +26,16 @@ attack from to = do
             defenders     = min 2 occupiedT
             -- randomly determine results of attack
             attackersLost = fst (rollAttack attackers defenders g)
-            attackersWon  = attackers - attackersLost
-            defendersLost = defenders - defendersWon
-            defendersWon  = max 0 (defenders - attackersWon)
-            ts'           = if defendersWon > 0 then
+            attackersRem  = attackers - attackersLost
+            attackersWon  = max 0 (min attackers defenders - attackersLost)
+            defendersLost = defenders - defendersRem
+            defendersRem  = max 0 (defenders - attackersWon)
+            ts'           = if defendersRem > 0 then
                                  -- defender won
                                  M.insert from (p, occupiedF - attackersLost) $ M.insert to (p', occupiedT - defendersLost) ts
                             else
                                  -- attacker won
-                                 M.insert from (p, occupiedF - attackers) $ M.insert to (p, attackersWon) ts
+                                 M.insert from (p, occupiedF - attackers) $ M.insert to (p, attackersRem) ts
         newMessage ("Attacking with " ++ show attackers ++ " attackers vs. " ++ show defenders ++ " defenders")
         newMessage ("You lost " ++ show attackersLost ++ " attackers, defending player lost " ++ show defendersLost ++ " defenders")
         State.modify $ \s -> s { phase = Attack Nothing,
