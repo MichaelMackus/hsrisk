@@ -69,7 +69,7 @@ handleEvent (MouseButtonEvent e) | mouseButtonEventMotion e == Released = do
             (Attack Nothing) -> do
                 ts <- State.gets occupiedTerritories
                 let (p', occupied) = fromJust (M.lookup t ts)
-                when (p == p') $ do
+                when (p == p' && occupied > 1) $ do
                     newMessage "Choose an adjacent territory to attack... (ESCAPE aborts)"
                     State.modify $ \s -> s { phase = (Attack (Just t)) }
             (Attack (Just from)) -> attack from t
