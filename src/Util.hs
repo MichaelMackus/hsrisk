@@ -38,6 +38,13 @@ ptoi (P (V2 x y)) = (P (V2 (fromIntegral x) (fromIntegral y)))
 numerate :: [a] -> [(Int, a)]
 numerate = zip [0..]
 
+next :: Eq a => Maybe a -> [a] -> Maybe a
+next _ []             = Nothing
+next Nothing    (x:_) = Just x
+next (Just e) l@(x:_) = Just $ case dropWhile (/= e) l of
+                          (_:y:_) -> y
+                          _       -> x
+
 -- spit lists into a balanced list of lists num length
 -- if list is not evenly divisible, the remaining elements will be
 -- evenly distributed onto the front of the result list

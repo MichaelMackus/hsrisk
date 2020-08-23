@@ -2,11 +2,12 @@ module Game.Types where
 
 import Graphics.Image.Index
 import Graphics.Rect
+import Util (next)
 import Util.Pathfinder (findPathSimple)
 
 import Control.Monad.Reader
 import Codec.Picture (PixelRGBA8(..))
-import Data.Maybe (fromMaybe, isJust)
+import Data.Maybe (fromMaybe, isJust, fromJust)
 import Data.Map ((!))
 import Data.Functor.Identity (runIdentity)
 import Foreign.C.Types
@@ -98,13 +99,25 @@ changePhase p = do
 
 advanceTurn :: GameRenderer ()
 advanceTurn = do
-    p <- State.gets phase
-    case p of
+    phase <- State.gets phase
+    case phase of
         (Assign n) -> changePhase (Attack Nothing)
         (Attack _) -> changePhase (Move Nothing)
-        (Move   _) -> return () -- TODO next turn
+        (Move   _) -> do
+            {-- advance to next turn! --}
+            p  <- State.gets playing
+            ps <- State.gets players
+            let p' = fromMaybe (error "Unable to find next player") $ next p (filter isHuman ps)
+            newMessage ("It is now player " ++ show (playerNum p') ++ "'s turn")
+            State.modify (\s -> s { playing = Just p' })
+            changePhase . Assign =<< assignableUnits
+
+isHuman :: Player -> Bool
+isHuman (Player  _) = True
+isHuman (Neutral _) = False
 
 -- get new assignable units
+-- TODO account for new territories
 assignableUnits :: GameRenderer Int
 assignableUnits = do
     p  <- fromMaybe (error "No player") <$> State.gets playing
@@ -116,6 +129,10 @@ playerTerritories :: Player -> GameRenderer [Territory]
 playerTerritories p = let f t (p',_) ts = if p == p' then (t:ts)
                                           else ts
                       in  return . M.foldrWithKey f [] =<< State.gets occupiedTerritories
+
+playerNum :: Player -> Int
+playerNum (Player  n) = n
+playerNum (Neutral n) = n
 
 continentType :: PixelRGBA8 -> Maybe (ContinentType)
 continentType (PixelRGBA8 255 255 0   255) = Just NAmerica

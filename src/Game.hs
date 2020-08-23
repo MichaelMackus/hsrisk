@@ -22,8 +22,7 @@ runGame window renderer = do
     where
         startGame = do
             newMessage "New game"
-            n <- assignableUnits
-            changePhase (Assign n)
+            advanceTurn -- cheap hack to show "It is now player 1" at start of game
             gameLoop
 
 gameLoop :: GameRenderer ()
