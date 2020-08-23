@@ -43,7 +43,7 @@ data GameState = GameState {
 }
 
 data Player = Player Int | Neutral Int deriving Eq
-data Phase = Assign Int | Attack (Maybe Territory) | Move (Maybe Territory)
+data Phase = Assign Int | Attack (Maybe Territory) | Move (Maybe Territory) deriving Eq
 
 data Territory = Territory {
   territoryLoc :: Point V2 CInt,
@@ -94,8 +94,8 @@ changePhase p = do
     State.modify (\s -> s { phase = p })
     case p of
         (Assign n) -> newMessage ("You get " ++ show n ++ " units! Assign them to your territories." )
-        (Attack _) -> newMessage ("Attack phase - choose territory to attack from, then choose a target. Enter when done.")
-        (Move   _) -> newMessage ("Move phase - choose territory to move from, then choose a target. Enter when done.")
+        (Attack _) -> newMessage ("Attack phase - choose territory to attack from, then choose a target. Press ENTER when done.")
+        (Move   _) -> newMessage ("Move phase - choose territory to move from, then choose a target. Press ENTER when done.")
 
 advanceTurn :: GameRenderer ()
 advanceTurn = do

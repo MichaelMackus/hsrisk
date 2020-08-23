@@ -89,6 +89,7 @@ handleEvent (MouseButtonEvent e) | mouseButtonEventMotion e == Released = do
                     let ts' = M.insert from (p, occupied - 1) $ M.insert t (p, occupied' + 1) ts
                         newPhase = if occupied > 2 then phase else Move Nothing
                     State.modify $ \s -> s { occupiedTerritories = ts', phase = newPhase }
+                    when (newPhase /= phase) $ newMessage "Done moving, choose another territory to move from. Press ENTER when done."
 handleEvent (KeyboardEvent e)
     -- quit on "q"
     | keyboardEventKeyMotion e == Pressed &&
