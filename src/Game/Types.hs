@@ -2,15 +2,18 @@ module Game.Types where
 
 import Graphics.Image.Index
 import Graphics.Rect
+import Util.Pathfinder (findPathSimple)
 
 import Control.Monad.Reader
 import Codec.Picture (PixelRGBA8(..))
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, isJust)
+import Data.Map ((!))
 import Data.Functor.Identity (runIdentity)
 import Foreign.C.Types
 import SDL
 import qualified Control.Monad.State as State
 import qualified Data.Map as M
+import qualified Data.Set as S
 import qualified SDL.Font as Font
 
 type Map k v = M.Map k v
@@ -142,10 +145,21 @@ playerColor p = case p of
           color 5 = PixelRGBA8 255 255 0
           color _ = error "Invalid player number"
 
-isConnected :: Map Territory [Territory]
+occupyingPlayer :: Map Territory (Player, Int) -> Territory -> Player
+occupyingPlayer m t = let (p, _) = m ! t
+                      in  p
+
+isAdjacent :: Map Territory [Territory]
                 -> Territory -> Territory -> Bool
-isConnected connsMap from to =
+isAdjacent connsMap from to =
     case M.lookup from connsMap of
         Nothing    -> error "Unable to find connections for territory!"
         Just conns -> any (== to) conns
 
+isConnected :: Map Territory [Territory]
+                -> Map Territory (Player, Int)
+                -> Territory -> Territory -> Bool
+isConnected conns occupied from to =
+    let p   = occupyingPlayer occupied from
+        f t = S.fromList $ filter ((==p) . occupyingPlayer occupied) (conns ! t)
+    in  isJust (findPathSimple f to from)

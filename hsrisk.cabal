@@ -37,6 +37,7 @@ library
     , Graphics.Image
     , System.Random.Shuffle
     , Util
+    , Util.Pathfinder
   other-modules:
       Paths_hsrisk
   hs-source-dirs:

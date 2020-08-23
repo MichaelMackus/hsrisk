@@ -46,7 +46,7 @@ handleEvent (MouseMotionEvent e) = do
   case findPixel i (x,y) of
     Just tid -> State.modify (\s -> s { hovering = Just (ts !! tid) })
     Nothing  -> State.modify (\s -> s { hovering = Nothing })
-handleEvent (MouseButtonEvent e) = do
+handleEvent (MouseButtonEvent e) | mouseButtonEventMotion e == Released = do
   let (x, y) = toXY (mouseButtonEventPos e)
   i  <- asks index
   ts <- State.gets territories
@@ -74,7 +74,22 @@ handleEvent (MouseButtonEvent e) = do
                     newMessage "Choose an adjacent territory to attack... (ESCAPE aborts)"
                     State.modify $ \s -> s { phase = (Attack (Just t)) }
             (Attack (Just from)) -> attack from t
-            otherwise  -> return ()
+            (Move   Nothing) -> do
+                ts <- State.gets occupiedTerritories
+                let (p', occupied) = fromJust (M.lookup t ts)
+                when (occupied > 1 && p == p') $ do
+                    newMessage "Choose a connecting territory to move to... (ESCAPE aborts)"
+                    State.modify $ \s -> s { phase = (Move (Just t)) }
+            (Move   (Just from)) -> do
+                conns <- State.gets territoryConnections
+                ts    <- State.gets occupiedTerritories
+                let (_, occupied)  = fromJust (M.lookup from ts)
+                    (_, occupied') = fromJust (M.lookup t ts)
+                when (occupied > 1 && isConnected conns ts from t) $ do
+                    newMessage "Moving 1 unit to connecting territory, click again to move another... (ESCAPE aborts)"
+                    let ts' = M.insert from (p, occupied - 1) $ M.insert t (p, occupied' + 1) ts
+                        newPhase = if occupied > 2 then phase else Move Nothing
+                    State.modify $ \s -> s { occupiedTerritories = ts', phase = newPhase }
 handleEvent (KeyboardEvent e)
     -- quit on "q"
     | keyboardEventKeyMotion e == Pressed &&
@@ -83,9 +98,10 @@ handleEvent (KeyboardEvent e)
     | keyboardEventKeyMotion e == Pressed &&
       keysymKeycode (keyboardEventKeysym e) == KeycodeEscape = do
         phase <- State.gets phase
+        let abortMsg = newMessage "Aborting previous action"
         case phase of
-            (Attack (Just _)) -> State.modify $ \s -> s { phase = Attack Nothing }
-            (Move   (Just _)) -> State.modify $ \s -> s { phase = Move Nothing }
+            (Attack (Just _)) -> abortMsg >> State.modify (\s -> s { phase = Attack Nothing })
+            (Move   (Just _)) -> abortMsg >> State.modify (\s -> s { phase = Move Nothing })
             otherwise         -> return ()
     -- advance to next phase on ENTER
     | keyboardEventKeyMotion e == Pressed &&

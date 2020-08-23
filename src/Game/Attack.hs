@@ -20,7 +20,7 @@ attack from to = do
     ts    <- State.gets occupiedTerritories
     let (p,  occupiedF) = ts ! from
         (p', occupiedT) = ts ! to
-    when (p /= p' && isConnected conns from to && occupiedF > 1) $ do
+    when (p /= p' && isAdjacent conns from to && occupiedF > 1) $ do
         g <- liftIO newStdGen
         let attackers     = min 3 (occupiedF - 1)
             defenders     = min 2 occupiedT
