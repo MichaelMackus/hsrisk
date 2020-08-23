@@ -61,19 +61,19 @@ initGame playerCnt window renderer = do
             putStrLn ("Failed connection for region " ++ show (territoryLoc f))
         {-- construct the env and game state --}
         let env      = RendererEnv window renderer texture font index texMap
-            st       = GameState (Just (head players)) players Nothing ts conns occupied
+            st       = GameState (Just (head players)) players Nothing ts conns occupied ["New game"]
         atomically $ writeTVar shared (Just (env, st))
     {-- wait to play game until assets are loaded --}
-    waitUntilLoaded renderer font shared
+    waitUntilLoaded window renderer font shared
     atomically $ readTVar shared
 
 --waitUntilLoaded :: Renderer -> Font.Font -> TVar (Maybe RendererEnv) -> IO ()
-waitUntilLoaded r f shared = do
+waitUntilLoaded win r f shared = do
     index <- atomically $ readTVar shared
     if isJust index then return ()
     else do
-        renderLoadingScreen r f
-        waitUntilLoaded r f shared
+        renderLoadingScreen win r f
+        waitUntilLoaded win r f shared
 
 initTerritories :: IndexedImage -> Image PixelRGBA8 -> [Territory]
 initTerritories index bgimg = map initTerritory [0..length points - 1]

@@ -19,15 +19,16 @@ import qualified Control.Monad.State as State
 
 bgColor = pixelToV4 grey
 
-renderLoadingScreen :: Renderer -> Font.Font -> IO ()
-renderLoadingScreen r font = f "Loading"
+renderLoadingScreen :: Window -> Renderer -> Font.Font -> IO ()
+renderLoadingScreen window r font = f "Loading"
   where f text = do
           clear r
           rendererDrawColor r $= bgColor
           s       <- Font.solid font (V4 0 0 0 255) text
           fontT   <- createTextureFromSurface r s
           texInfo <- queryTexture fontT
-          target  <- mkRectangleWithin (textureDimensions texInfo) (V2 1227 600)
+          maxSize <- get (windowSize window)
+          target  <- mkRectangleWithin (textureDimensions texInfo) maxSize
           copy r fontT Nothing (Just target)
           present r
           threadDelay 300000
@@ -37,15 +38,33 @@ updateRenderer :: GameRenderer ()
 updateRenderer = do
   {-- initialize renderer --}
   r       <- asks renderer
-  maxSize <- get . windowSize =<< asks window
-  texture <- asks background
-  texInfo <- queryTexture texture
-  target  <- liftIO $ mkRectangleCroppedTo (textureDimensions texInfo) maxSize
+  f       <- asks font
+  fLineH  <- Font.lineSkip f
+  bgTex   <- asks background
+  bgInfo  <- queryTexture bgTex
+  winSize <- get . windowSize =<< asks window
 
   {-- draw BG image --}
   liftIO $ clear r
   liftIO $ rendererDrawColor r $= bgColor
-  liftIO $ copy r texture Nothing (Just target)
+  liftIO $ copy r bgTex Nothing (Just (textureRect bgInfo))
+
+  {-- draw messages --}
+  msgs <- State.gets messages
+  let (V2 bgW bgH)   = textureDimensions bgInfo
+      (V2 maxW maxH) = winSize
+      maxMsgs        = floor (fromIntegral (maxH - bgH) / fromIntegral fLineH)
+  forM_ (take maxMsgs (numerate msgs)) $ \(i, msg) -> do
+      s        <- Font.blended f (V4 0 0 0 255) (T.pack msg)
+      fontT    <- createTextureFromSurface r s
+      fontInfo <- queryTexture fontT
+      let (V2 w h) = textureDimensions fontInfo
+          padding  = 10
+          offset   = fromIntegral (fLineH * i)
+          fontRect = Rectangle (P (V2 padding (bgH + offset))) (V2 w h)
+      liftIO $ copy r fontT Nothing (Just fontRect)
+      freeSurface s
+      destroyTexture fontT
 
   {-- draw occupied player & army count --}
   ts      <- M.toList <$> State.gets occupiedTerritories
@@ -59,7 +78,6 @@ updateRenderer = do
       liftIO $ copy r tex Nothing (Just rect)
       {-- draw occupied army count --}
       idx      <- asks index
-      f        <- asks font
       s        <- Font.blended f (V4 0 0 0 255) (T.pack (show armyCnt))
       fontT    <- createTextureFromSurface r s
       texInfo  <- queryTexture fontT

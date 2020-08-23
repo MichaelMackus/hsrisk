@@ -2,6 +2,7 @@ module Graphics.Rect
     ( mkRectangleWithin
      ,mkRectangleCroppedTo
      ,textureDimensions
+     ,textureRect
     ) where
 
 import SDL
@@ -21,6 +22,9 @@ mkRectangleCroppedTo (V2 w h) (V2 outerw outerh) =
 
 textureDimensions :: TextureInfo -> V2 CInt
 textureDimensions (TextureInfo _ _ w h) = V2 w h
+
+textureRect :: TextureInfo -> Rectangle CInt
+textureRect (TextureInfo _ _ w h) = Rectangle (P (V2 0 0)) (V2 w h)
 
 -- translate origin so that the rect is in the center of outerw x outerh
 translateOrigin :: Integral a => (a, a) -> (a, a) -> (a, a)

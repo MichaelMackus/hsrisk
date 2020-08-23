@@ -35,6 +35,9 @@ toXY (P (V2 x y)) = (fromIntegral x, fromIntegral y)
 ptoi :: Integral a => Point V2 a -> Point V2 Int
 ptoi (P (V2 x y)) = (P (V2 (fromIntegral x) (fromIntegral y)))
 
+numerate :: [a] -> [(Int, a)]
+numerate = zip [0..]
+
 -- spit lists into a balanced list of lists num length
 -- if list is not evenly divisible, the remaining elements will be
 -- evenly distributed onto the front of the result list

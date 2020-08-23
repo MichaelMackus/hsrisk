@@ -32,7 +32,8 @@ data GameState = GameState {
   hovering :: Maybe Territory,
   territories :: [Territory],
   territoryConnections :: Map Territory [Territory],
-  occupiedTerritories :: Map Territory (Player, Int)
+  occupiedTerritories :: Map Territory (Player, Int),
+  messages :: [String]
 }
 
 data Player = Player Int | Neutral Int deriving Eq
