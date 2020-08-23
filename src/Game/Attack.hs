@@ -25,7 +25,7 @@ attack from to = do
         let attackers     = min 3 (occupiedF - 1)
             defenders     = min 2 occupiedT
             -- randomly determine results of attack
-            attackersLost = fst (rollAttack attackers defenders g)
+            (attackersLost, atkRolls, defRolls, _) = rollAttack attackers defenders g
             attackersRem  = attackers - attackersLost
             attackersWon  = max 0 (min attackers defenders - attackersLost)
             defendersLost = defenders - defendersWon
@@ -37,18 +37,18 @@ attack from to = do
                             else
                                  -- attacker won
                                  M.insert from (p, occupiedF - attackers) $ M.insert to (p, attackersRem) ts
-        newMessage ("Attacking with " ++ show attackers ++ " attackers vs. " ++ show defenders ++ " defenders")
+        newMessage ("You rolled " ++ show atkRolls ++ ", defending player rolled " ++ show defRolls)
         newMessage ("You lost " ++ show attackersLost ++ " attackers, defending player lost " ++ show defendersLost ++ " defenders")
         State.modify $ \s -> s { phase = Attack Nothing,
                                  occupiedTerritories = ts' }
 
 -- roll attack for n attackers & defenders
 -- first part of result contains attackers who lost
-rollAttack :: RandomGen g => Int -> Int -> g -> (Int, g)
+rollAttack :: RandomGen g => Int -> Int -> g -> (Int, [Int], [Int], g)
 rollAttack attackers defenders g = let (atkRolls, g')  = rollN attackers g
                                        (defRolls, g'') = rollN defenders g'
                                        l               = compareRolls atkRolls defRolls
-                                   in  (length (filter (/=GT) l), g'')
+                                   in  (length (filter (/=GT) l), atkRolls, defRolls, g'')
 
 -- compare attacker & defender rolls to see how many of each won
 compareRolls :: [Int] -> [Int] -> [Ordering]
