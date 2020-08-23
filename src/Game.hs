@@ -84,7 +84,7 @@ handleEvent (MouseButtonEvent e) | mouseButtonEventMotion e == Released = do
                 ts    <- State.gets occupiedTerritories
                 let (_, occupied)  = fromJust (M.lookup from ts)
                     (_, occupied') = fromJust (M.lookup t ts)
-                when (occupied > 1 && isConnected conns ts from t) $ do
+                when (occupied > 1 && from /= t && isConnected conns ts from t) $ do
                     newMessage "Moving 1 unit to connecting territory, click again to move another... (ESCAPE aborts)"
                     let ts' = M.insert from (p, occupied - 1) $ M.insert t (p, occupied' + 1) ts
                         newPhase = if occupied > 2 then phase else Move Nothing
