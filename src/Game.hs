@@ -8,9 +8,10 @@ import Graphics.Image
 import Util
 
 import Control.Monad.Reader
-import Data.Maybe (isJust)
+import Data.Maybe (isJust, isNothing, fromJust)
 import SDL
 import qualified Control.Monad.State as State
+import qualified Data.Map as M
 
 runGame :: Window -> Renderer -> IO ()
 runGame window renderer = do
@@ -20,15 +21,12 @@ runGame window renderer = do
     where
         startGame = do
             newMessage "New game"
-            changePhase Assign
+            n <- assignableUnits
+            changePhase (Assign n)
             gameLoop
 
 gameLoop :: GameRenderer ()
 gameLoop = do
-  {-- game phase --}
-  -- phase   <- State.gets phase
-  -- case phase of
-  --   Assign -> do
   {-- handle events --}
   events  <- map eventPayload <$> liftIO pollEvents
   mapM_ handleEvent events
@@ -47,6 +45,28 @@ handleEvent (MouseMotionEvent e) = do
   case findPixel i (x,y) of
     Just tid -> State.modify (\s -> s { hovering = Just (ts !! tid) })
     Nothing  -> State.modify (\s -> s { hovering = Nothing })
+handleEvent (MouseButtonEvent e) = do
+  let (x, y) = toXY (mouseButtonEventPos e)
+  i  <- asks index
+  ts <- State.gets territories
+  case findPixel i (x,y) of
+    Nothing  -> return ()
+    Just tid -> do
+        let t = ts !! tid
+        phase <- State.gets phase
+        case phase of
+            (Assign 0) -> changePhase Attack
+            (Assign n) -> do
+                p  <- return . fromJust =<< State.gets playing
+                ts <- State.gets occupiedTerritories
+                let (p', occupied) = fromJust (M.lookup t ts)
+                when (p == p') $ do
+                    let occupied' = M.insert t (p, occupied + 1) ts
+                    State.modify $ \s -> s {
+                        phase = (Assign (n - 1)),
+                        occupiedTerritories = occupied'
+                    }
+            otherwise  -> return ()
 handleEvent (KeyboardEvent e)
     | keyboardEventKeyMotion e == Pressed &&
       keysymKeycode (keyboardEventKeysym e) == KeycodeQ = liftGame gquit

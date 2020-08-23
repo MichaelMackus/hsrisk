@@ -5,6 +5,7 @@ import Graphics.Rect
 
 import Control.Monad.Reader
 import Codec.Picture (PixelRGBA8(..))
+import Data.Maybe (fromMaybe)
 import Data.Functor.Identity (runIdentity)
 import Foreign.C.Types
 import SDL
@@ -38,7 +39,7 @@ data GameState = GameState {
 }
 
 data Player = Player Int | Neutral Int deriving Eq
-data Phase = Assign | Attack | Move deriving (Enum, Eq)
+data Phase = Assign Int | Attack | Move deriving Eq
 
 data Territory = Territory {
   territoryLoc :: Point V2 CInt,
@@ -85,11 +86,25 @@ newMessage msg = do
     State.modify (\s -> s { messages = msg:msgs })
 
 changePhase :: Phase -> GameRenderer ()
-changePhase p
-    | p == Assign = let newUnits = 3
-                    in  newMessage ("You get " ++ show newUnits ++ " units! Assign them to your territories." )
-    | p == Attack = newMessage ("Attack phase - choose territory to attack from, then choose a target. Enter when done.")
-    | p == Move   = newMessage ("Move phase - choose territory to move from, then choose a target. Enter when done.")
+changePhase p = do
+    State.modify (\s -> s { phase = p })
+    case p of
+        (Assign n) -> newMessage ("You get " ++ show n ++ " units! Assign them to your territories." )
+        Attack     -> newMessage ("Attack phase - choose territory to attack from, then choose a target. Enter when done.")
+        Move       -> newMessage ("Move phase - choose territory to move from, then choose a target. Enter when done.")
+
+-- get new assignable units
+assignableUnits :: GameRenderer Int
+assignableUnits = do
+    p  <- fromMaybe (error "No player") <$> State.gets playing
+    ts <- playerTerritories p
+    let def = 3
+    return def
+
+playerTerritories :: Player -> GameRenderer [Territory]
+playerTerritories p = let f t (p',_) ts = if p == p' then (t:ts)
+                                          else ts
+                      in  return . M.foldrWithKey f [] =<< State.gets occupiedTerritories
 
 continentType :: PixelRGBA8 -> Maybe (ContinentType)
 continentType (PixelRGBA8 255 255 0   255) = Just NAmerica
