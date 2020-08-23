@@ -39,7 +39,7 @@ data GameState = GameState {
 }
 
 data Player = Player Int | Neutral Int deriving Eq
-data Phase = Assign Int | Attack | Move deriving Eq
+data Phase = Assign Int | Attack (Maybe Territory) | Move (Maybe Territory)
 
 data Territory = Territory {
   territoryLoc :: Point V2 CInt,
@@ -90,8 +90,16 @@ changePhase p = do
     State.modify (\s -> s { phase = p })
     case p of
         (Assign n) -> newMessage ("You get " ++ show n ++ " units! Assign them to your territories." )
-        Attack     -> newMessage ("Attack phase - choose territory to attack from, then choose a target. Enter when done.")
-        Move       -> newMessage ("Move phase - choose territory to move from, then choose a target. Enter when done.")
+        (Attack _) -> newMessage ("Attack phase - choose territory to attack from, then choose a target. Enter when done.")
+        (Move   _) -> newMessage ("Move phase - choose territory to move from, then choose a target. Enter when done.")
+
+advanceTurn :: GameRenderer ()
+advanceTurn = do
+    p <- State.gets phase
+    case p of
+        (Assign n) -> changePhase (Attack Nothing)
+        (Attack _) -> changePhase (Move Nothing)
+        (Move   _) -> return () -- TODO next turn
 
 -- get new assignable units
 assignableUnits :: GameRenderer Int
@@ -133,3 +141,11 @@ playerColor p = case p of
           color 4 = PixelRGBA8 0   0   255
           color 5 = PixelRGBA8 255 255 0
           color _ = error "Invalid player number"
+
+isConnected :: Map Territory [Territory]
+                -> Territory -> Territory -> Bool
+isConnected connsMap from to =
+    case M.lookup from connsMap of
+        Nothing    -> error "Unable to find connections for territory!"
+        Just conns -> any (== to) conns
+

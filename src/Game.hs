@@ -1,5 +1,6 @@
 module Game (gameLoop, runGame) where
 
+import Game.Attack
 import Game.Init
 import Game.Types
 import Game.Renderer
@@ -49,15 +50,14 @@ handleEvent (MouseButtonEvent e) = do
   let (x, y) = toXY (mouseButtonEventPos e)
   i  <- asks index
   ts <- State.gets territories
+  p  <- return . fromJust =<< State.gets playing
   case findPixel i (x,y) of
     Nothing  -> return ()
     Just tid -> do
         let t = ts !! tid
         phase <- State.gets phase
         case phase of
-            (Assign 0) -> changePhase Attack
             (Assign n) -> do
-                p  <- return . fromJust =<< State.gets playing
                 ts <- State.gets occupiedTerritories
                 let (p', occupied) = fromJust (M.lookup t ts)
                 when (p == p') $ do
@@ -66,9 +66,34 @@ handleEvent (MouseButtonEvent e) = do
                         phase = (Assign (n - 1)),
                         occupiedTerritories = occupied'
                     }
+                when (n == 1) advanceTurn
+            (Attack Nothing) -> do
+                ts <- State.gets occupiedTerritories
+                let (p', occupied) = fromJust (M.lookup t ts)
+                when (p == p') $ do
+                    newMessage "Choose an adjacent territory to attack... (ESCAPE aborts)"
+                    State.modify $ \s -> s { phase = (Attack (Just t)) }
+            (Attack (Just from)) -> attack from t
             otherwise  -> return ()
 handleEvent (KeyboardEvent e)
+    -- quit on "q"
     | keyboardEventKeyMotion e == Pressed &&
       keysymKeycode (keyboardEventKeysym e) == KeycodeQ = liftGame gquit
+    -- abort attack/move on ESCAPE
+    | keyboardEventKeyMotion e == Pressed &&
+      keysymKeycode (keyboardEventKeysym e) == KeycodeEscape = do
+        phase <- State.gets phase
+        case phase of
+            (Attack (Just _)) -> State.modify $ \s -> s { phase = Attack Nothing }
+            (Move   (Just _)) -> State.modify $ \s -> s { phase = Move Nothing }
+            otherwise         -> return ()
+    -- advance to next phase on ENTER
+    | keyboardEventKeyMotion e == Pressed &&
+      keysymKeycode (keyboardEventKeysym e) == KeycodeReturn = do
+        phase <- State.gets phase
+        case phase of
+            (Attack _) -> advanceTurn
+            (Move   _) -> advanceTurn
+            otherwise  -> return () -- must assign all new units first
 handleEvent (WindowClosedEvent _) = liftGame gquit
 handleEvent otherwise = return ()
