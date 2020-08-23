@@ -17,7 +17,7 @@ import qualified Data.Map as M
 import qualified SDL.Font as Font
 import qualified Control.Monad.State as State
 
-bgColor = pixelToSDL grey
+bgColor = pixelToV4 grey
 
 renderLoadingScreen :: Renderer -> Font.Font -> IO ()
 renderLoadingScreen r font = f "Loading"
@@ -47,12 +47,20 @@ updateRenderer = do
   liftIO $ rendererDrawColor r $= bgColor
   liftIO $ copy r texture Nothing (Just target)
 
-  {-- draw occupied army & count --}
+  {-- draw occupied player & army count --}
   ts      <- M.toList <$> State.gets occupiedTerritories
   forM ts $ \(t, (p, armyCnt)) -> do 
+      {-- draw color of occupying player --}
+      tex  <- territoryTex t
+      rect <- territoryRect t
+      let color = playerColor p
+      textureAlphaMod tex $= pixelAlpha color
+      textureColorMod tex $= pixelToV3 color
+      liftIO $ copy r tex Nothing (Just rect)
+      {-- draw occupied army count --}
       idx      <- asks index
       f        <- asks font
-      s        <- Font.blended f (V4 0 0 0 255) (T.pack (show p ++ " - " ++ show armyCnt))
+      s        <- Font.blended f (V4 0 0 0 255) (T.pack (show armyCnt))
       fontT    <- createTextureFromSurface r s
       texInfo  <- queryTexture fontT
       terrRect <- territoryRect t
@@ -74,6 +82,7 @@ updateRenderer = do
       -- highlight territory region
       tex  <- territoryTex t
       rect <- territoryRect t
+      textureAlphaMod tex $= 125
       textureColorMod tex $= V3 255 255 255
       liftIO $ copy r tex Nothing (Just rect)
       -- highlight territory connections (TODO another color)
@@ -81,5 +90,6 @@ updateRenderer = do
       forM_ conns $ \t -> do
           tex  <- territoryTex t
           rect <- territoryRect t
+          textureAlphaMod tex $= 125
           textureColorMod tex $= V3 200 200 200
           liftIO $ copy r tex Nothing (Just rect)

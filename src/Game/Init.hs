@@ -30,12 +30,14 @@ initGame playerCnt window renderer = do
     shared <- atomically $ newTVar Nothing
     forkIO $ do
         {-- load background image --}
-        image <- loadImage "res/image/risk-map-continent-colors.png"
+        image <- loadImage "res/image/risk-map-white.png"
         putStrLn "Image loaded"
         {-- convert image to SDL --}
         surface  <- createSurfaceFromImage image
         texture  <- createTextureFromSurface renderer surface
         {-- load image without numbers or borders to index regions --}
+        image <- loadImage "res/image/risk-map-continent-colors.png"
+        putStrLn "Image loaded"
         image' <- loadImage "res/image/risk-map-connected-regions.png"
         putStrLn "Index image loaded"
         let index   = indexImage image'
@@ -81,7 +83,7 @@ initTerritories index bgimg = map initTerritory [0..length points - 1]
                                   Just t  -> Continent t (fromXY (0,0))
                                   Nothing -> error ("Invalid region color: " ++ show tColor)
                     tColor    = regionColor bgimg (colorRegions index !! r) 
-                    contType  = tColor >>= toCountryType
+                    contType  = tColor >>= continentType
                     region    = colorRegions index !! r
                     (x,y)     = (regionStartX region, regionStartY region)
                     (w,h)     = (regionWidth  region, regionHeight region)
@@ -132,15 +134,6 @@ initOccupied ts ps = do
                                --     f = \(k,v) -> zip balancedTs (repeat vals)
                                -- in  M.fromList (map f l)
     
-toCountryType :: PixelRGBA8 -> Maybe (ContinentType)
-toCountryType (PixelRGBA8 255 255 0   255) = Just NAmerica
-toCountryType (PixelRGBA8 255 0   0   255) = Just SAmerica
-toCountryType (PixelRGBA8 0   0   255 255) = Just Europe
-toCountryType (PixelRGBA8 128 64  0   255) = Just Africa
-toCountryType (PixelRGBA8 0   164 0   255) = Just Asia
-toCountryType (PixelRGBA8 128 0   255 255) = Just Australia
-toCountryType otherwise = Nothing
-
 initRegionImage :: Image PixelRGBA8 -> IndexedImage -> Int -> Image PixelRGBA8
 initRegionImage bgimg index r = let ((sx,sy),i) = indexRegions index !! r
                                     (w,h) = (imageWidth i, imageHeight i)
@@ -150,6 +143,6 @@ initRegionImage bgimg index r = let ((sx,sy),i) = indexRegions index !! r
                                 inCountry = not (isTransparent pi || pi == black)
                             in  case r' of
                                     (Just r') | r' == r && inCountry
-                                                           -> PixelRGBA8 255 255 255 125
+                                                           -> PixelRGBA8 255 255 255 255
                                               | otherwise  -> PixelRGBA8 0   0   0   0
                                     Nothing                -> PixelRGBA8 0   0   0   0

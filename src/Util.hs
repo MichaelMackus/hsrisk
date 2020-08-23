@@ -14,8 +14,14 @@ black = PixelRGBA8 0 0 0 255
 grey :: PixelRGBA8
 grey = PixelRGBA8 200 200 200 200
 
-pixelToSDL :: PixelRGBA8 -> V4 Word8
-pixelToSDL (PixelRGBA8 r g b a) = V4 r g b a
+pixelToV4 :: PixelRGBA8 -> V4 Word8
+pixelToV4 (PixelRGBA8 r g b a) = V4 r g b a
+
+pixelToV3 :: PixelRGBA8 -> V3 Word8
+pixelToV3 (PixelRGBA8 r g b a) = V3 r g b
+
+pixelAlpha :: PixelRGBA8 -> Word8
+pixelAlpha (PixelRGBA8 r g b a) = a
 
 outOfBounds :: (Int, Int) -> Image a -> Bool
 outOfBounds (x, y) i = x >= imageWidth  i || x < 0 || y >= imageHeight i || y < 0
