@@ -54,7 +54,7 @@ initGame playerCnt window renderer = do
         {-- initialize territories & game state --}
         let ts      = initTerritories index image
             texMap  = M.fromList (zip ts textures)
-            players = map (\n -> if n <= playerCnt then Player n else Player n) [1..maxPlayers]
+            players = map (\n -> if n <= playerCnt then Player n else Neutral n) [1..maxPlayers]
         conns    <- getConnections ts
         occupied <- initOccupied ts players
         forM_ (invalidConnections conns) $ \f -> do
