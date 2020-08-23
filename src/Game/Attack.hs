@@ -31,7 +31,7 @@ attack from to = do
             defendersWon  = max 0 (defenders - attackersWon)
             ts'           = if defendersWon > 0 then
                                  -- defender won
-                                 M.insert from (p, occupiedF - attackersLost) $ M.insert to (p', defenders - defendersLost) ts
+                                 M.insert from (p, occupiedF - attackersLost) $ M.insert to (p', occupiedT - defendersLost) ts
                             else
                                  -- attacker won
                                  M.insert from (p, occupiedF - attackers) $ M.insert to (p, attackersWon) ts
