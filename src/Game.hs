@@ -1,10 +1,10 @@
 module Game (gameLoop, runGame) where
 
-import Game.Attack
 import Game.Init
 import Game.Types
 import Game.Renderer
 import Game.Types
+import Game.Phase
 import Graphics.Image
 import Util
 
@@ -46,50 +46,13 @@ handleEvent (MouseMotionEvent e) = do
     Just tid -> State.modify (\s -> s { hovering = Just (ts !! tid) })
     Nothing  -> State.modify (\s -> s { hovering = Nothing })
 handleEvent (MouseButtonEvent e) | mouseButtonEventMotion e == Released = do
-  let (x, y) = toXY (mouseButtonEventPos e)
   i  <- asks index
   ts <- State.gets territories
   p  <- return . fromJust =<< State.gets playing
+  let (x, y) = toXY (mouseButtonEventPos e)
   case findPixel i (x,y) of
     Nothing  -> return ()
-    Just tid -> do
-        let t = ts !! tid
-        phase <- State.gets phase
-        case phase of
-            (Assign n) -> do
-                ts <- State.gets occupiedTerritories
-                let (p', occupied) = fromJust (M.lookup t ts)
-                when (p == p') $ do
-                    let occupied' = M.insert t (p, occupied + 1) ts
-                    State.modify $ \s -> s {
-                        phase = (Assign (n - 1)),
-                        occupiedTerritories = occupied'
-                    }
-                when (n == 1) advanceTurn
-            (Attack Nothing) -> do
-                ts <- State.gets occupiedTerritories
-                let (p', occupied) = fromJust (M.lookup t ts)
-                when (p == p' && occupied > 1) $ do
-                    newMessage "Choose an adjacent territory to attack... (ESCAPE aborts)"
-                    State.modify $ \s -> s { phase = (Attack (Just t)) }
-            (Attack (Just from)) -> attack from t
-            (Move   Nothing) -> do
-                ts <- State.gets occupiedTerritories
-                let (p', occupied) = fromJust (M.lookup t ts)
-                when (occupied > 1 && p == p') $ do
-                    newMessage "Choose a connecting territory to move to... (ESCAPE aborts)"
-                    State.modify $ \s -> s { phase = (Move (Just t)) }
-            (Move   (Just from)) -> do
-                conns <- State.gets territoryConnections
-                ts    <- State.gets occupiedTerritories
-                let (_, occupied)  = fromJust (M.lookup from ts)
-                    (_, occupied') = fromJust (M.lookup t ts)
-                when (occupied > 1 && from /= t && isConnected conns ts from t) $ do
-                    newMessage "Moving 1 unit to connecting territory, click again to move another... (ESCAPE aborts)"
-                    let ts' = M.insert from (p, occupied - 1) $ M.insert t (p, occupied' + 1) ts
-                        newPhase = if occupied > 2 then phase else Move Nothing
-                    State.modify $ \s -> s { occupiedTerritories = ts', phase = newPhase }
-                    when (newPhase /= phase) $ newMessage "Done moving, choose another territory to move from. Press ENTER when done."
+    Just tid -> interactWithTerritory p (ts !! tid) =<< State.gets phase
 handleEvent (KeyboardEvent e)
     -- quit on "q"
     | keyboardEventKeyMotion e == Pressed &&

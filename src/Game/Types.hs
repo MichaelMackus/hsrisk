@@ -2,12 +2,11 @@ module Game.Types where
 
 import Graphics.Image.Index
 import Graphics.Rect
-import Util (next)
 import Util.Pathfinder (findPathSimple)
 
 import Control.Monad.Reader
 import Codec.Picture (PixelRGBA8(..))
-import Data.Maybe (fromMaybe, isJust, fromJust, catMaybes)
+import Data.Maybe (fromMaybe, isJust, catMaybes)
 import Data.Map ((!))
 import Data.Functor.Identity (runIdentity)
 import Foreign.C.Types
@@ -44,7 +43,7 @@ data GameState = GameState {
 }
 
 data Player = Player Int | Neutral Int deriving Eq
-data Phase = Assign Int | Attack (Maybe Territory) | Move (Maybe Territory) deriving Eq
+data Phase = Assign Int | Attack (Maybe Territory) | Move (Maybe Territory) deriving Eq -- TODO Add phase for moving after attack
 
 data Territory = Territory {
   territoryLoc :: Point V2 CInt,
@@ -89,29 +88,6 @@ newMessage :: String -> GameRenderer ()
 newMessage msg = do
     msgs <- State.gets messages
     State.modify (\s -> s { messages = msg:msgs })
-
-changePhase :: Phase -> GameRenderer ()
-changePhase p = do
-    State.modify (\s -> s { phase = p })
-    case p of
-        (Assign n) -> newMessage ("You get " ++ show n ++ " units! Assign them to your territories." )
-        (Attack _) -> newMessage ("Attack phase - choose territory to attack from, then choose a target. Press ENTER when done.")
-        (Move   _) -> newMessage ("Move phase - choose territory to move from, then choose a target. Press ENTER when done.")
-
-advanceTurn :: GameRenderer ()
-advanceTurn = do
-    phase <- State.gets phase
-    case phase of
-        (Assign n) -> changePhase (Attack Nothing)
-        (Attack _) -> changePhase (Move Nothing)
-        (Move   _) -> do
-            {-- advance to next turn! --}
-            p  <- State.gets playing
-            ps <- State.gets players
-            let p' = fromMaybe (error "Unable to find next player") $ next p (filter isHuman ps)
-            newMessage ("It is now player " ++ show (playerNum p') ++ "'s turn")
-            State.modify (\s -> s { playing = Just p' })
-            changePhase . Assign =<< assignableUnits
 
 isHuman :: Player -> Bool
 isHuman (Player  _) = True
