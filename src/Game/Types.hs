@@ -100,9 +100,9 @@ assignableUnits = do
     p  <- fromMaybe (error "No player") <$> State.gets playing
     ts <- playerTerritories p
     cs <- playerContinents p
-    let unitsForTerritories = floor (fromIntegral (length ts) / 3)
+    let unitsForTerritories = max 3 (floor (fromIntegral (length ts) / 3))
         unitsForContinents  = foldr (\c n -> n + continentValue (ctype c)) 0 cs
-    return $ max 3 (unitsForTerritories + unitsForContinents)
+    return (unitsForTerritories + unitsForContinents)
 
 playerTerritories :: Player -> GameRenderer [Territory]
 playerTerritories p = let f t (p',_) ts = if p == p' then (t:ts)
