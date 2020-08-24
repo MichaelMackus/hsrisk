@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Game.Renderer (renderLoadingScreen, updateRenderer) where
+module Game.Renderer (renderLoadingScreen, updateRenderer, maxWidth, maxHeight) where
 
 import Game.Types
 import Graphics.Image (regionRect)
@@ -18,6 +18,8 @@ import qualified SDL.Font as Font
 import qualified Control.Monad.State as State
 
 bgColor = pixelToV4 grey
+maxWidth  = 1280
+maxHeight = 720
 
 renderLoadingScreen :: Window -> Renderer -> Font.Font -> IO ()
 renderLoadingScreen window r font = f "Loading"
@@ -27,8 +29,7 @@ renderLoadingScreen window r font = f "Loading"
           s       <- Font.solid font (V4 0 0 0 255) text
           fontT   <- createTextureFromSurface r s
           texInfo <- queryTexture fontT
-          maxSize <- get (windowSize window)
-          target  <- mkRectangleWithin (textureDimensions texInfo) maxSize
+          target  <- mkRectangleWithin (textureDimensions texInfo) (V2 maxWidth maxHeight)
           copy r fontT Nothing (Just target)
           present r
           threadDelay 300000
@@ -42,7 +43,6 @@ updateRenderer = do
   fLineH  <- Font.lineSkip f
   bgTex   <- asks background
   bgInfo  <- queryTexture bgTex
-  winSize <- get . windowSize =<< asks window
 
   {-- draw BG image --}
   liftIO $ clear r
@@ -52,8 +52,7 @@ updateRenderer = do
   {-- draw messages --}
   msgs <- State.gets messages
   let (V2 bgW bgH)   = textureDimensions bgInfo
-      (V2 maxW maxH) = winSize
-      maxMsgs        = floor (fromIntegral (maxH - bgH) / fromIntegral fLineH)
+      maxMsgs        = floor (fromIntegral (maxHeight - bgH) / fromIntegral fLineH)
   forM_ (take maxMsgs (numerate msgs)) $ \(i, msg) -> do
       s        <- Font.blended f (V4 0 0 0 255) (T.pack msg)
       fontT    <- createTextureFromSurface r s
