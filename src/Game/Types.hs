@@ -43,7 +43,7 @@ data GameState = GameState {
 }
 
 data Player = Player Int | Neutral Int deriving Eq
-data Phase = Assign Int | Attack (Maybe Territory) | Move (Maybe Territory) deriving Eq -- TODO Add phase for moving after attack
+data Phase = NewGame | Assign Int | Attack (Maybe Territory) | Move (Maybe Territory) deriving Eq -- TODO Add phase for moving after attack
 
 data Territory = Territory {
   territoryLoc :: Point V2 CInt,

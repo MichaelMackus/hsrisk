@@ -22,6 +22,7 @@ advanceTurn :: GameRenderer ()
 advanceTurn = do
     phase <- State.gets phase
     case phase of
+        NewGame    -> changePhase . Assign =<< assignableUnits
         (Assign n) -> changePhase (Attack Nothing)
         (Attack _) -> do
             --  TODO end turn if nothing to move

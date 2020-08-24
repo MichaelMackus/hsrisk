@@ -11,6 +11,8 @@ import Util
 import Control.Monad.Reader
 import Data.Maybe (isJust, isNothing, fromJust)
 import SDL
+import System.Random
+import System.Random.Shuffle
 import qualified Control.Monad.State as State
 import qualified Data.Map as M
 
@@ -21,8 +23,13 @@ runGame window renderer = do
         State.evalStateT (runReaderT startGame env) st
     where
         startGame = do
+            ps <- filter isHuman <$> State.gets players
+            g  <- liftIO newStdGen
+            let ((p:_), _) = shuffle g ps
+            State.modify $ \s -> s { playing = Just p }
             newMessage "New game"
-            advanceTurn -- cheap hack to show "It is now player 1" at start of game
+            newMessage ("Player " ++ show (playerNum p) ++ " gets to go first!")
+            advanceTurn
             gameLoop
 
 gameLoop :: GameRenderer ()
