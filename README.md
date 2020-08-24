@@ -1,8 +1,7 @@
 # Haskell Risk Game
 
-A simple Risk Game implemented in Haskell. The game is minimalistic but
-it does use official rules and is fully playable (currently limited to
-two human players).
+A simple Risk Game implemented in Haskell. The game is minimalistic but it is
+fully playable (currently limited to two human players).
 
 For fullscreen mode, pass -f or --fullscreen to the program - e.g.
 `stack run -- --fullscreen`.
