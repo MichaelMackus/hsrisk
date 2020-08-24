@@ -122,10 +122,9 @@ invalidConnections conns = let ts = M.keys conns
 
 initOccupied :: [Territory] -> [Player] -> IO (Map Territory (Player, Int))
 initOccupied ts ps = do
-        g <- getStdGen
-        let (shuffledTs, g') = shuffle g ts
-            balancedTs       = reverse (splitBalanced (length ps) shuffledTs)
-        setStdGen g'
+        g <- newStdGen
+        let (shuffledTs, _) = shuffle g ts
+            balancedTs      = reverse (splitBalanced (length ps) shuffledTs)
         when (length balancedTs /= length ps) (error "Split error while shuffling territories!")
         return (mkMap balancedTs ps)
     where mkMap balancedTs ps = let f (p,ts) m = foldr (g p) m ts
