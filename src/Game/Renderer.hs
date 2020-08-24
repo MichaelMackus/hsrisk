@@ -68,6 +68,7 @@ updateRenderer = do
 
   {-- draw occupied player & army count --}
   ts      <- M.toList <$> State.gets occupiedTerritories
+  liftIO $ Font.setStyle f [Font.Bold]
   forM ts $ \(t, (p, armyCnt)) -> do 
       {-- draw color of occupying player --}
       tex  <- territoryTex t
@@ -89,6 +90,7 @@ updateRenderer = do
       liftIO $ copy r fontT Nothing $ Just (Rectangle (P (V2 x y)) (V2 tw th))
       freeSurface s
       destroyTexture fontT
+  liftIO $ Font.setStyle f []
 
   {-- draw highlighted territory --}
   r   <- asks renderer
