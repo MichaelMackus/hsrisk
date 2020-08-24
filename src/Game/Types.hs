@@ -158,7 +158,7 @@ playerColor p = case p of
     where color 1 = PixelRGBA8 255 0   0
           color 2 = PixelRGBA8 128 0   255
           color 3 = PixelRGBA8 0   255 0
-          color 4 = PixelRGBA8 0   0   255
+          color 4 = PixelRGBA8 0   255 255
           color 5 = PixelRGBA8 255 255 0
           color _ = error "Invalid player number"
 
