@@ -3,18 +3,16 @@ module Game (gameLoop, runGame) where
 import Game.Init
 import Game.Types
 import Game.Renderer
-import Game.Types
 import Game.Phase
 import Graphics.Image
 import Util
 
 import Control.Monad.Reader
-import Data.Maybe (isJust, isNothing, fromJust)
+import Data.Maybe (isJust, fromJust)
 import SDL
 import System.Random
 import System.Random.Shuffle
 import qualified Control.Monad.State as State
-import qualified Data.Map as M
 
 runGame :: Window -> Renderer -> IO ()
 runGame window renderer = do
@@ -35,13 +33,16 @@ runGame window renderer = do
 gameLoop :: GameRenderer ()
 gameLoop = do
   {-- handle events --}
-  events  <- map eventPayload <$> liftIO pollEvents
+  events <- map eventPayload <$> liftIO pollEvents
   mapM_ handleEvent events
   updateRenderer
   {-- render to screen & continue playing --}
   liftIO . present =<< asks renderer
+  ts      <- State.gets occupiedTerritories
   playing <- State.gets playing
-  when (isJust playing) gameLoop
+  case whoWon ts of
+    Just winner -> liftIO $ putStrLn ("Player " ++ show (playerNum winner) ++ " wins!")
+    Nothing     -> when (isJust playing) gameLoop
 
 handleEvent :: EventPayload -> GameRenderer ()
 -- handleEvent (MouseButtonEvent  e)

@@ -104,6 +104,14 @@ assignableUnits = do
         unitsForContinents  = foldr (\c n -> n + continentValue (ctype c)) 0 cs
     return (unitsForTerritories + unitsForContinents)
 
+whoWon :: Map Territory (Player, Int) -> Maybe Player
+whoWon ts =
+    let f (p,_) ps = if p `elem` ps then ps
+                     else (p:ps)
+        ps = M.foldr f [] ts
+    in if length ps == 1 then Just (head ps)
+       else Nothing
+
 playerTerritories :: Player -> GameRenderer [Territory]
 playerTerritories p = let f t (p',_) ts = if p == p' then (t:ts)
                                           else ts
