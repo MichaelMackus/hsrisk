@@ -11,7 +11,7 @@ import System.Environment (getArgs)
 main :: IO ()
 main = do
   {-- initialize SDL --}
-  initializeAll
+  initialize [InitVideo, InitEvents]
   HintRenderScaleQuality $= ScaleLinear
   isFullscreen <- any (`elem` ["--fullscreen", "-f"]) <$> getArgs
   let windowConfig = defaultWindow { windowResizable = False,
